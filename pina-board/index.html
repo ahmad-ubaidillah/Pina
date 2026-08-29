@@ -43,6 +43,12 @@
   .panel .pill { font-size:10px; background:#eef4ff; color:#146ef5; border:1px solid #d6e4ff; border-radius:20px; padding:1px 7px; }
   .panel .warn { color:#b45309; }
   .panel .ok { color:#16a34a; }
+  .chatlog { height:240px; overflow-y:auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; font-size:12px; line-height:1.4; margin:6px 0; white-space:pre-wrap; }
+  .chatlog .me { color:#146ef5; font-weight:600; }
+  .chatinput { width:100%; font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; }
+  .mem { font-size:11px; max-height:200px; overflow-y:auto; }
+  .mem .item { padding:3px 0; border-bottom:1px dashed #eef2f7; white-space:pre-wrap; }
+  .mem .tag { font-size:10px; color:#146ef5; }
   footer { padding:8px 20px; color:var(--muted); font-size:11px; border-top:1px dashed var(--line); }
 </style>
 </head>
@@ -200,6 +206,26 @@ swarmPanel.innerHTML = `<h2>Swarm control</h2>
   <div class="sub" id="swarmStatus" style="margin-top:8px;color:var(--muted)">—</div>`;
 document.querySelector(".board").after(swarmPanel);
 
+// Chat panel: talk to Pina directly from the board UI (SSE streamed).
+const chatPanel = document.createElement("div");
+chatPanel.className = "panel";
+chatPanel.id = "chat";
+chatPanel.innerHTML = `<h2>💬 Chat with Pina</h2>
+  <div class="chatlog" id="chatLog"></div>
+  <input id="chatInput" class="chatinput" placeholder="tanya Pina… (Enter untuk kirim)" />
+  <button class="btn" id="chatSend">Kirim</button>
+  <button class="btn" id="chatClear">Clear</button>`;
+swarmPanel.after(chatPanel);
+
+// Memory panel: surface OMNI memory (distillations / engrams / patterns).
+const memPanel = document.createElement("div");
+memPanel.className = "panel";
+memPanel.id = "memory";
+memPanel.innerHTML = `<h2>🧠 Memory (OMNI)</h2>
+  <button class="btn" id="memRefresh">Refresh</button>
+  <div class="mem" id="memBody" style="margin-top:6px">— klik refresh —</div>`;
+chatPanel.after(memPanel);
+
 document.getElementById("setGoal").addEventListener("click", async () => {
   const g = document.getElementById("goalInput").value.trim();
   await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "goal", arg: g }) });
@@ -233,6 +259,77 @@ async function loadSwarm() {
 }
 setInterval(loadSwarm, 5000);
 loadSwarm();
+
+// --- Chat: stream pina -p output via SSE ---
+const chatLog = document.getElementById("chatLog");
+const chatInput = document.getElementById("chatInput");
+function appendChat(text, who) {
+  const div = document.createElement("div");
+  if (who === "me") div.className = "me";
+  div.textContent = (who === "me" ? "› " : "") + text;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+async function sendChat() {
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  chatInput.value = "";
+  appendChat(msg, "me");
+  const log = document.createElement("div");
+  chatLog.appendChild(log);
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: msg }),
+    });
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value);
+      const lines = buf.split("\n\n");
+      buf = lines.pop();
+      for (const ln of lines) {
+        if (ln.startsWith("data: ")) {
+          try { const j = JSON.parse(ln.slice(6)); if (j.t) log.textContent += j.t; } catch {}
+        }
+      }
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+  } catch (e) {
+    log.textContent += "\n[error: " + e.message + "]";
+  }
+}
+document.getElementById("chatSend").addEventListener("click", sendChat);
+document.getElementById("chatClear").addEventListener("click", () => { chatLog.innerHTML = ""; });
+chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
+
+// --- Memory: fetch OMNI memory snapshot ---
+const memBody = document.getElementById("memBody");
+async function loadMemory() {
+  memBody.innerHTML = "memuat…";
+  try {
+    const d = await (await fetch("/api/memory")).json();
+    if (!d.ok) { memBody.textContent = "OMNI offline"; return; }
+    let html = "";
+    const sec = (t, items) => {
+      if (!items) return "";
+      const arr = Array.isArray(items) ? items : (items && typeof items === "object" ? [items] : []);
+      if (!arr.length) return `<div class="sec">${t}: —</div>`;
+      return `<div class="sec">${t} (${arr.length})</div>` + arr.slice(0, 8).map(x =>
+        `<div class="item"><span class="tag">${t}</span> ${escape(typeof x === "string" ? x : JSON.stringify(x)).slice(0, 180)}</div>`).join("");
+    };
+    html += sec("query", d.query);
+    html += sec("engram", d.engram);
+    html += sec("patterns", d.patterns);
+    if (d.stats) html += `<div class="sec">stats</div><div class="item">${escape(JSON.stringify(d.stats)).slice(0, 200)}</div>`;
+    memBody.innerHTML = html || "— kosong —";
+  } catch { memBody.textContent = "error"; }
+}
+document.getElementById("memRefresh").addEventListener("click", loadMemory);
+
 </script>
 </body>
 </html>

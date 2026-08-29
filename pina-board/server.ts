@@ -105,7 +105,7 @@ function buildBoard() {
 const HTML = readFileSync(join(import.meta.dir, "index.html"), "utf8");
 
 // Live OMNI session snapshot (best-effort; never crash the board if omni missing).
-const OMNI = "/home/ahmad/Documents/shrimp-ai/pina-core/bin/omni";
+const OMNI = "/home/ahmad/Documents/pina/pina-core/bin/omni";
 async function omniSession(): Promise<any | null> {
   if (!existsSync(OMNI)) return null;
   try {
@@ -177,7 +177,7 @@ const server = Bun.serve({
       if (!prompt) return new Response(JSON.stringify({ ok: false, error: "empty prompt" }), { status: 400 });
       // Launch shrimp -p in its own session (detached). No GitHub, local-only.
       const child = Bun.spawn(
-        ["/home/ahmad/Documents/shrimp-ai/pina-core/packages/coding-agent/dist/shrimp", "-p", prompt],
+        ["/home/ahmad/Documents/pina/pina-core/packages/coding-agent/dist/shrimp", "-p", prompt],
         { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
       );
       return new Response(JSON.stringify({ ok: true, pid: child.pid }));
@@ -228,10 +228,68 @@ const server = Bun.serve({
       }
       if (!cmd) return new Response(JSON.stringify({ ok: false, error: "empty command" }), { status: 400 });
       const child = Bun.spawn(
-        ["/home/ahmad/Documents/shrimp-ai/pina-core/packages/coding-agent/dist/shrimp", "-p", cmd],
+        ["/home/ahmad/Documents/pina/pina-core/packages/coding-agent/dist/shrimp", "-p", cmd],
         { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
       );
       return new Response(JSON.stringify({ ok: true, pid: child.pid }));
+    }
+    // --- Chat: stream a pina -p session back to the browser over SSE ---
+    if (url.pathname === "/api/chat" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      const message = String(body.message ?? "").slice(0, 4000);
+      if (!message) return new Response(JSON.stringify({ ok: false, error: "empty message" }), { status: 400 });
+      const model = String(body.model ?? "sumopod/mimo-v2.5").slice(0, 80);
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          const child = Bun.spawn(
+            ["/home/ahmad/Documents/pina/pina-core/packages/coding-agent/dist/shrimp", "-p", message, "--model", model],
+            { stdout: "pipe", stderr: "pipe", stdin: "ignore",
+              env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
+          );
+          const push = (s: string) => controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: s })}\n\n`));
+          const dec = new TextDecoder();
+          const pump = async (rs: ReadableStream<Uint8Array> | null | undefined) => {
+            if (!rs) return;
+            const reader = rs.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              push(dec.decode(value, { stream: true }));
+            }
+          };
+          Promise.all([pump(child.stdout), pump(child.stderr)]).then(() => {});
+          child.exited.then((code) => {
+            push(`\n[session ended · exit ${code}]`);
+            controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
+            controller.close();
+          });
+        },
+      });
+      return new Response(stream, {
+        headers: { "content-type": "text/event-stream", "cache-control": "no-store", "connection": "keep-alive" },
+      });
+    }
+    // --- Memory: surface OMNI memory (query/engram/patterns/stats) ---
+    if (url.pathname === "/api/memory" && req.method === "GET") {
+      const run = async (args: string[]) => {
+        if (!existsSync(OMNI)) return null;
+        try {
+          const p = Bun.spawn([OMNI, ...args, "--json"], { stdout: "pipe", stderr: "ignore" });
+          const txt = await new Response(p.stdout).text();
+          await p.exited;
+          try { return JSON.parse(txt); } catch { return txt; }
+        } catch { return null; }
+      };
+      const [query, engram, patterns, stats] = await Promise.all([
+        run(["query", "*"]),
+        run(["engram"]),
+        run(["patterns"]),
+        run(["stats"]),
+      ]);
+      return new Response(JSON.stringify({ ok: true, query, engram, patterns, stats }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      });
     }
     if (url.pathname === "/" || url.pathname === "/index.html") {
       return new Response(HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
@@ -240,4 +298,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`🦐 Shrimp Kanban board → http://127.0.0.1:${server.port}`);
+console.log(`🍍 Pina board → http://127.0.0.1:${server.port}`);

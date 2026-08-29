@@ -1,0 +1,10 @@
+# Shrimp-ai local repo — tracks docs, plugin, board UI, installer only.
+# The forked core (shrimp-ai-core) is its own nested git repo and is ignored here.
+
+shrimp-ai-core/
+node_modules/
+board.sqlite
+data/
+research/
+*.log
+.DS_Store

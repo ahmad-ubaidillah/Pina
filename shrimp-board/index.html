@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🦐 Shrimp Kanban</title>
+<style>
+  :root { --blue:#146ef5; --ink:#0d0d0d; --line:#e5e7eb; --muted:#64748b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background:#fff; color:var(--ink); }
+  header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px dashed var(--line); }
+  header h1 { font-size:18px; margin:0; }
+  header .sub { color:var(--muted); font-size:12px; }
+  .board { display:flex; gap:12px; padding:16px 20px; overflow-x:auto; align-items:flex-start; }
+  .col { background:#fafafa; border:1px solid var(--line); border-radius:10px; min-width:230px; width:230px; flex:0 0 auto; }
+  .col-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); }
+  .dot { width:9px; height:9px; border-radius:50%; }
+  .col-head .name { font-weight:600; font-size:13px; }
+  .col-head .cnt { margin-left:auto; font-size:11px; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:20px; padding:1px 8px; }
+  .cards { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:40px; }
+  .card { background:#fff; border:1px solid var(--line); border-left:3px solid var(--blue); border-radius:8px; padding:9px 10px; cursor:grab; }
+  .card:active { cursor:grabbing; }
+  .card .t { font-size:13px; line-height:1.35; }
+  .card .meta { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+  .badge { font-size:10px; padding:1px 7px; border-radius:20px; background:#f1f5f9; color:#334155; border:1px solid var(--line); }
+  .badge.agent { background:#eef4ff; color:#146ef5; border-color:#d6e4ff; }
+  .badge.retry { background:#fff4e5; color:#b45309; border-color:#fde6c4; }
+  .btn { font-size:11px; font-weight:600; color:var(--blue); background:#fff; border:1px solid var(--blue);
+         border-radius:6px; padding:3px 9px; cursor:pointer; margin-top:7px; }
+  .btn:hover { background:var(--blue); color:#fff; }
+  .inp { width:100%; font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; margin:4px 0; }
+  .card.drag-over { outline:2px dashed var(--blue); }
+  .empty { color:#cbd5e1; font-size:11px; text-align:center; padding:8px 0; }
+  .panel { width:300px; flex:0 0 auto; border:1px solid var(--line); border-radius:10px; background:#fafafa; padding:12px 14px; align-self:stretch; }
+  .panel h2 { font-size:13px; margin:0 0 8px; display:flex; align-items:center; gap:6px; }
+  .panel .row { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-bottom:1px dashed #eef2f7; }
+  .panel .row:last-child { border-bottom:0; }
+  .panel .k { color:var(--muted); }
+  .panel .v { font-weight:600; }
+  .panel .sec { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
+  .panel .file { font-size:11px; padding:2px 0; display:flex; justify-content:space-between; }
+  .panel .pill { font-size:10px; background:#eef4ff; color:#146ef5; border:1px solid #d6e4ff; border-radius:20px; padding:1px 7px; }
+  .panel .warn { color:#b45309; }
+  .panel .ok { color:#16a34a; }
+  footer { padding:8px 20px; color:var(--muted); font-size:11px; border-top:1px dashed var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🦐 Shrimp Kanban</h1>
+  <span class="sub" id="updated">memuat…</span>
+  <button class="btn" id="undoBtn" style="margin-left:auto">Undo</button>
+</header>
+<div class="board" id="board"></div>
+<div class="panel" id="agent"><h2>🤖 OMNI live</h2><div class="sub">memuat…</div></div>
+<footer>Drag kartu antar kolom untuk pindah state • SQLite lokal + mcp-shrimp-task-manager • auto-refresh 3s</footer>
+
+<script>
+const STATES = [];
+const COLORS = {};
+let board = document.getElementById("board");
+
+async function load() {
+  const r = await fetch("/api/board");
+  const d = await r.json();
+  STATES.length = 0; STATES.push(...d.states);
+  Object.assign(COLORS, d.colors);
+  board.innerHTML = "";
+  for (const s of d.states) {
+    const col = document.createElement("div");
+    col.className = "col";
+    col.dataset.state = s;
+    const items = d.columns[s] || [];
+    col.innerHTML = `<div class="col-head"><span class="dot" style="background:${d.colors[s]}"></span>
+      <span class="name">${s}</span><span class="cnt">${items.length}</span></div>
+      <div class="cards" data-state="${s}"></div>`;
+    const cards = col.querySelector(".cards");
+    if (!items.length) cards.innerHTML = `<div class="empty">— kosong —</div>`;
+    for (const t of items) cards.appendChild(card(t));
+    board.appendChild(col);
+  }
+  document.getElementById("updated").textContent = "update " + d.updated;
+}
+
+function card(t) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.draggable = true;
+  el.dataset.id = t.id;
+  el.dataset.source = t.source || "local";
+  let meta = "";
+  if (t.agent) meta += `<span class="badge agent">agent: ${escape(t.agent)}</span>`;
+  if (t.retries > 0) meta += `<span class="badge retry">retry ${t.retries}</span>`;
+  if (t.source === "mcp") meta += `<span class="badge">mcp</span>`;
+  if (t.deps && t.deps.length) meta += `<span class="badge">deps: ${t.deps.length}</span>`;
+  const btn = `<button class="btn" data-launch="${escape(t.title)}">Launch agent</button>`;
+  const spawnBtn = `<button class="btn spawn" data-spawn="${escape(t.title)}">Spawn worker</button>`;
+  el.innerHTML = `<div class="t">${escape(t.title)}</div>${meta ? `<div class="meta">${meta}</div>` : ""}${btn}${spawnBtn}`;
+  el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", JSON.stringify({ id: t.id, source: t.source || "local" })); });
+  el.querySelector(".btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const b = e.target;
+    b.disabled = true; b.textContent = "launching…";
+    const r = await fetch("/api/launch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt: t.title }) });
+    const j = await r.json().catch(() => ({}));
+    b.textContent = j.ok ? "launched ✓" : "failed";
+    setTimeout(() => { b.disabled = false; b.textContent = "Launch agent"; }, 2500);
+  });
+  return el;
+}
+
+board.addEventListener("dragover", (e) => {
+  const cards = e.target.closest(".cards");
+  if (!cards) return;
+  e.preventDefault();
+  cards.parentElement.querySelectorAll(".card").forEach(c => c.classList.remove("drag-over"));
+  cards.classList.add && null;
+});
+board.addEventListener("dragover", (e) => { if (e.target.closest(".cards")) e.preventDefault(); });
+board.addEventListener("drop", async (e) => {
+  const cards = e.target.closest(".cards");
+  if (!cards) return;
+  e.preventDefault();
+  const state = cards.dataset.state;
+  let data; try { data = JSON.parse(e.dataTransfer.getData("text/plain")); } catch { return; }
+  if (data.source === "local" && typeof data.id === "number") {
+    await fetch("/api/move", { method:"POST", headers:{"content-type":"application/json"},
+      body: JSON.stringify({ id: data.id, state }) });
+    load();
+  }
+});
+
+function escape(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+
+async function loadAgent() {
+  const el = document.getElementById("agent");
+  let d;
+  try { d = await (await fetch("/api/agent")).json(); } catch { el.innerHTML = "<h2>🤖 OMNI</h2><div class='sub'>offline</div>"; return; }
+  if (!d.ok || !d.session) { el.innerHTML = "<h2>🤖 OMNI</h2><div class='sub'>offline</div>"; return; }
+  const s = d.session, st = d.stats;
+  let html = `<h2>🤖 OMNI live <span class="pill">${escape(s.agent_id||"pi")}</span></h2>`;
+  html += `<div class="row"><span class="k">project</span><span class="v">${escape(s.domain||"-")}</span></div>`;
+  html += `<div class="row"><span class="k">context</span><span class="v ${s.context_pressure==="High"?"warn":"ok"}">${escape(s.context_pressure||"-")}</span></div>`;
+  html += `<div class="row"><span class="k">commands</span><span class="v">${s.command_count??0}</span></div>`;
+  html += `<div class="row"><span class="k">tokens saved</span><span class="v">${s.tokens_saved??0}</span></div>`;
+  if (st && st.periods) {
+    const at = st.periods.find(p=>p.label==="all_time") || st.periods[st.periods.length-1];
+    if (at) html += `<div class="row"><span class="k">savings (all)</span><span class="v">${at.savings_pct.toFixed(1)}%</span></div>`;
+  }
+  if (s.active_errors && s.active_errors.length) {
+    html += `<div class="sec">⚠ active errors (${s.active_errors.length})</div>`;
+    for (const e of s.active_errors.slice(0,3)) html += `<div class="file warn">${escape(String(e).slice(0,48))}…</div>`;
+  }
+  if (s.hot_files && s.hot_files.length) {
+    html += `<div class="sec">🔥 hot files</div>`;
+    for (const f of s.hot_files.slice(0,5)) html += `<div class="file"><span>${escape(f.path)}</span><span class="pill">${f.count}×</span></div>`;
+  }
+  el.innerHTML = html;
+}
+
+load();
+loadAgent();
+setInterval(load, 3000);
+setInterval(loadAgent, 5000);
+
+document.getElementById("undoBtn").addEventListener("click", async () => {
+  const r = await fetch("/api/undo", { method: "POST" });
+  const j = await r.json().catch(() => ({}));
+  if (j.ok) load();
+});
+
+// Swarm: spawn worker button on each card.
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".btn.spawn");
+  if (!b) return;
+  e.stopPropagation();
+  const title = b.dataset.spawn || "";
+  b.disabled = true; b.textContent = "spawning…";
+  const r = await fetch("/api/spawn", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt: title }) });
+  const j = await r.json().catch(() => ({}));
+  b.textContent = j.ok ? "spawned ✓" : "failed";
+  setTimeout(() => { b.disabled = false; b.textContent = "Spawn worker"; }, 2500);
+});
+
+// Swarm control panel (goal + autonomous).
+const swarmPanel = document.createElement("div");
+swarmPanel.className = "panel";
+swarmPanel.id = "swarm";
+swarmPanel.innerHTML = `<h2>Swarm control</h2>
+  <div class="row"><span class="k">goal</span></div>
+  <input id="goalInput" class="inp" placeholder="set persistent goal…" />
+  <button class="btn" id="setGoal">Set goal</button>
+  <div class="row" style="margin-top:8px"><span class="k">autonomous</span>
+    <button class="btn" id="autoOn">On</button>
+    <button class="btn" id="autoOff">Off</button></div>
+  <div class="row" style="margin-top:8px"><span class="k">budget (turns)</span></div>
+  <input id="budgetInput" class="inp" placeholder="e.g. 10" />
+  <button class="btn" id="setBudget">Set budget</button>
+  <div class="sub" id="swarmStatus" style="margin-top:8px;color:var(--muted)">—</div>`;
+document.querySelector(".board").after(swarmPanel);
+
+document.getElementById("setGoal").addEventListener("click", async () => {
+  const g = document.getElementById("goalInput").value.trim();
+  await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "goal", arg: g }) });
+  document.getElementById("swarmStatus").textContent = g ? `goal set: ${g}` : "goal cleared";
+  loadSwarm();
+});
+document.getElementById("autoOn").addEventListener("click", async () => {
+  const b = document.getElementById("budgetInput").value.trim();
+  await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autonomous", arg: "on", budget: b ? Number(b) : 0 }) });
+  document.getElementById("swarmStatus").textContent = "autonomous ON" + (b ? ` (budget ${b})` : "");
+  loadSwarm();
+});
+document.getElementById("autoOff").addEventListener("click", async () => {
+  await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autonomous", arg: "off" }) });
+  document.getElementById("swarmStatus").textContent = "autonomous OFF";
+  loadSwarm();
+});
+
+// Refresh swarm panel from live state.
+async function loadSwarm() {
+  try {
+    const d = await (await fetch("/api/swarm-state")).json();
+    if (!d.ok) return;
+    const st = d.state;
+    const el = document.getElementById("swarmStatus");
+    if (el) {
+      el.innerHTML = `goal: <b>${st.goal ? escape(st.goal) : "—"}</b><br>autonomous: <b>${st.autonomous ? "ON" : "OFF"}</b>` +
+        (st.budgetTurns ? ` (budget ${st.budgetTurns})` : "") + `<br>lessons: ${st.refinements}`;
+    }
+  } catch {}
+}
+setInterval(loadSwarm, 5000);
+loadSwarm();
+</script>
+</body>
+</html>

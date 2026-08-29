@@ -9,3 +9,21 @@ data/
 research/
 *.log
 .DS_Store
+
+# --- Internal / not for public distribution ---
+# Dev notes, research, build reports, architecture/design drafts, quality-gate docs.
+WEB_STACK.md
+BUILD_REPORT.md
+WEAKNESSES.md
+STACK.md
+REBASE.md
+IMPROVEMENTS.md
+DESIGN.md
+CRAWL_REPORT.md
+ARCHITECTURE.md
+AGENTS.md
+patches/README.md
+pina-board/SWARM.md
+# verification / dev scripts
+verify*.ts
+run-server.sh

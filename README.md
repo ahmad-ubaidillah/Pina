@@ -1,68 +1,68 @@
 # 🍍 Pina — Pi Native Agent
 
-> Coding agent yang **lebih kecil, lebih ringan, lebih cepat** + guardrail + pipeline Kanban multi-agent.
-> Fork dari [OMP / oh-my-pi](https://github.com/oh-my-pi) yang dilanjutkan dari Hermes, dengan teknik hemat-token di-port sebagai extension, [mcp-shrimp-task-manager](https://github.com/0xshellming/mcp-shrimp-task-manager) dicolok sebagai plugin MCP, dan **OMNI** dibundle sebagai token-saver.
+> A coding agent that is **smaller, lighter, faster** — with guardrails, a multi-agent
+> Kanban pipeline, a bundled web stack, and a skill store.
+>
+> A fork of [OMP / oh-my-pi](https://github.com/oh-my-pi) continued from Hermes, with
+> token-saving techniques ported as an extension, [mcp-shrimp-task-manager](https://github.com/0xshellming/mcp-shrimp-task-manager)
+> plugged in as an MCP plugin, and **OMNI** bundled as the token-saver.
 
 ---
 
-## Kenapa Pina?
+## Why Pina?
 
-- **Hemat token** — OMNI (Apache 2.0) dibundle *di dalam* Pina, jadi gak perlu `omni init --pi`. Cross-turn ledger memotong konteks berulang ("folded 99%" terbukti di sesi nyata).
-- **Guardrail** — task manager + kanban states (TODO → RESEARCHING → PLANNING → WORKING → EVALUATING → DONE) + undo/transition log.
-- **Multi-agent** — swarm plugin bawaan: spawn worker paralel, autonomous loop, goal-driven.
-- **Visual Kanban** — board UI ringan (1 file `server.ts` + `index.html`, zero-dep Bun, 44KB). Lebih ringan dari pi-web (Next.js + React).
-- **Single binary** — core udah standalone executable (Bun-compile). Gak butuh `node_modules` saat runtime.
-
----
-
-## Struktur
-
-```
-pina/
-├── pina-core/            # fork OMP (nested git, di-ignore dari repo ini)
-├── pina-board/           # 🍍 Kanban board UI (Bun + HTML, zero-dep)
-│   ├── server.ts
-│   ├── index.html
-│   ├── pina-board.sh
-│   └── SWARM.md
-├── .pina/                # config dir (symlink ~/.omp) — swarm-state.json, experiments.json
-├── pina-install.sh       # installer (bikin symlink pina + back-compat shrimp)
-├── BUILD_REPORT.md       # laporan build lengkap + §11 improvements
-├── AGENTS.md
-└── README.md
-```
-
-Plugin swarm: `~/.omp/plugins/node_modules/@quintinshaw/swarm/index.ts`
-(tools: `spawn_worker`, `list_workers`, `set_goal`, `set_autonomous`, `refine`, `run_experiment`)
+- **Token-efficient** — OMNI (Apache-2.0) is bundled *inside* Pina, so no `omni init --pi`.
+  The cross-turn ledger compacts repeated context ("folded 99%" proven in real sessions).
+- **Guardrails** — task manager + Kanban states (TODO → RESEARCHING → PLANNING → WORKING
+  → EVALUATING → DONE) + undo / transition log.
+- **Multi-agent** — built-in swarm plugin: spawn parallel workers, autonomous loop, goal-driven.
+- **Web stack bundled** — `obscura` (headless browser) + `spider-rs` (crawler) + native
+  `web_search` + reusable Browser Actions. No Firecrawl, no cloud.
+- **Skill store** — toggle skills on/off from the board UI (web-scrape, crawl, pr-review, …).
+- **Visual Kanban** — a lightweight board UI (1 `server.ts` + `index.html`, zero-dep Bun).
+- **Single binary** — core is a Bun-compiled standalone executable. No `node_modules` at runtime.
 
 ---
 
-## Install
+## Install (one command)
 
 ```bash
-# 1. clone core (OMP fork) ke ~/Documents/pina/pina-core  (lihat pina-install.sh)
-# 2. symlink binary pina (back-compat: shrimp tetap jalan)
-bash pina-install.sh
-
-# 3. pastikan bun ada di PATH
-export PATH="$HOME/.bun/bin:$PATH"
+curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/Pina/main/install.sh | bash
 ```
 
-Binary:
-- `pina`  → coding agent (Pi Native Agent)
-- `pina-board` → jalanin Kanban UI di http://127.0.0.1:8787
-- `pina-omni-clean` → bersihin cache OMNI
+This downloads the prebuilt bundle for your OS/arch, extracts to `~/.pina/dist`,
+symlinks binaries to `~/.local/bin`, copies skills + browser-actions + the swarm plugin,
+and wraps `pina` so plugins load automatically.
+
+After install:
+
+```bash
+pina --help
+pina-board            # Kanban UI at http://127.0.0.1:8787
+```
+
+> Requires `bun` on PATH (for the board UI). The agent binary itself is standalone.
+
+### What gets installed
+
+| Binary | Purpose |
+|--------|---------|
+| `pina` | the coding agent (Pi Native Agent) |
+| `omni` | token-saver (bundled) |
+| `spider` | crawler (spider-rs, MIT) |
+| `obscura` | headless browser (Apache-2.0) |
+| `pina-board` | Kanban UI server |
 
 ---
 
-## Cara pakai
+## Usage
 
-### Manual / one-shot
+### One-shot
 ```bash
-pina -p "tulis fungsi quicksort di sort.ts"
+pina -p "write a quicksort function in sort.ts"
 ```
 
-### Swarm — spawn worker paralel
+### Swarm — parallel workers
 ```bash
 pina -p "use spawn_worker to build the login form"
 pina -p "use spawn_worker to build the signup form"
@@ -72,71 +72,113 @@ pina -p "use spawn_worker to build the signup form"
 ```bash
 pina -p "set goal to 'ship the auth module'"
 pina -p "set autonomous on"
-# Pina akan spawn worker paralel sampai goal kelar, lalu clear goal
+# Pina spawns parallel workers until the goal is met, then clears it
 ```
 
-### Board UI (Kanban + live OMNI + Launch + Spawn + Undo)
+### Board UI (Kanban + skills + swarm)
 ```bash
 pina-board
-# buka http://127.0.0.1:8787
+# open http://127.0.0.1:8787
 ```
-Fitur board:
-- 6-state kanban (drag/update via API)
-- **Live OMNI** — lihat session status + token savings real-time
-- **Launch Agent** — kirim prompt ke agent dari UI
-- **Spawn worker** — tombol per card → swarm
-- **Undo** — rollback transisi terakhir
-- **Swarm panel** — set goal / toggle autonomous / run refine
+Features: 6-state Kanban, live OMNI status, Launch Agent, Spawn Worker per card,
+Undo, Swarm panel (goal / autonomous / refine), and a **Skills** tab to toggle the
+skill store.
 
 ---
 
-## Refine / Self-improve
+## Web stack
 
-`refine` tool mencerna OMNI `engram` (subtask selesai) + `patterns` (error berulang) jadi lesson lokal di `~/.pina/swarm-state.json`.
+Pina ships a lightweight, local-first web layer (no third-party crawl service):
 
-`run_experiment` tool (pola dari `davebcn87/pi-autoresearch`):
-```bash
-pina -p "use run_experiment to run 'npm test' and capture METRIC passed=N"
-# hasil: keep/discard + metric tersimpan di ~/.pina/experiments.json
+| Need | Tool | License |
+|------|------|--------|
+| Headless browser | `obscura` | Apache-2.0 |
+| Real logged-in browser | BrowserSkill (`bsk`) | — (optional) |
+| Crawl / scrape / map | `spider-rs` (`spider`) | MIT |
+| Search | native `web_search` | — |
+| Reusable scripts | Browser Actions | — |
+
+Available tools (via the swarm plugin):
+
+- **`web_search`** — query the web (native provider).
+- **`browser_action`** — `action: fetch_url | script`, `backend: obscura | bsk | node`.
+  - `fetch_url` → `obscura fetch <url>` (JS-rendered pages).
+  - `script` → run a reusable `.js` Browser Action from `~/.pina/browser-actions`
+    (Halo-style: the AI decides *what/when*, the script owns *how*).
+- **`crawl`** — `mode: scrape | crawl | map | search`.
+  - `scrape` → `spider -u <url> scrape` (markdown).
+  - `crawl` → `spider -u <url> crawl` (follow links).
+  - `map` → list discovered URLs.
+  - `search` → falls back to `web_search` (spider CLI has no local search).
+
+### Browser Actions
+Put a `.js` file in `~/.pina/browser-actions/`. The script exports an async function:
+
+```js
+// ~/.pina/browser-actions/fetch_page.js
+module.exports = async (params, ctx) => {
+  const url = String(params?.url ?? "").trim();
+  const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Pina-Agent)" } });
+  const html = await r.text();
+  return { success: true, title: (html.match(/<title>([^<]*)<\/title>/i) || [])[1] };
+};
 ```
+
+Invoke it:
+```bash
+pina -p "use browser_action action=script script=fetch_page params={'url':'https://example.com'}"
+```
+
+---
+
+## Skill store
+
+Skills live in `pina-skills/` (each folder = one `SKILL.md`). The board UI lists them
+with an on/off toggle, persisted to `~/.pina/skills-enabled.json`. Disabled skills are
+rejected by the `use_skill` tool.
+
+Starter skills: `web-scrape`, `crawl`, `pr-review`, `issue-triage`, `changelog-gen`,
+`secret-scan`, `web-research`.
+
+Add a skill: drop a folder with `SKILL.md` into `pina-skills/` and add an entry to
+`pina-skills/index.json`.
+
+---
+
+## Architecture
+
+```
+pina/
+├── pina-core/            # OMP fork (nested git, ignored from this repo)
+├── pina-board/           # Kanban board UI (Bun + HTML, zero-dep)
+│   ├── server.ts
+│   └── index.html
+├── pina-skills/          # skill store (SKILL.md per skill)
+├── browser-actions/      # reusable .js browser scripts
+├── install.sh            # one-command installer (downloads release)
+├── pina-install.sh       # dev installer (symlinks from pina-core)
+└── README.md
+```
+
+The swarm plugin (`@quintinshaw/swarm`) is bundled into the release and loaded via
+`--plugin-dir ~/.pina/plugins` — it does **not** require the full OMP install.
 
 ---
 
 ## Tech stack
 
-- **Bun** (TypeScript) — core udah Bun-compiled standalone. Board UI juga Bun, zero-dep.
-- **OMNI** (Apache 2.0) — token-saver, dibundle di dalam Pina.
-- **mcp-shrimp-task-manager** — guardrail / task manager (plugin MCP).
-- **@quintinshaw/swarm** — plugin swarm (runtime, gak rebuild core).
-- **@quintinshaw/pi-dynamic-workflows** — engine swarm (WorkflowAgent).
-
-Tidak dipakai: pi-web (Next.js, terlalu berat), RustClaw/prime-agent sebagai core (cuma dipelajari polanya).
-
----
-
-## Improvements (2026-08-29) — lihat BUILD_REPORT §11
-
-| Item | Status | Catatan |
-|------|--------|---------|
-| B — Extension cache hash-keyed | ✅ | auto-invalid saat edit, startup tetap cepat |
-| H — run_experiment tool | ✅ | port pola pi-autoresearch, ~60 line |
-| G — Single binary | ✅ | udah standalone (179MB, no node_modules at runtime) |
-| A — Minify | ⏭️ | butuh patch build-chain, gain kecil (native blob dominan) |
-| F — node_modules dedupe | ❌ | dev-only, gak di-shipping |
-| Tech-stack migrate Node→Deno | ❌ | udah Bun, Deno gak compatible |
-
----
-
-## Rujukan (dipelajari, tidak di-fork)
-
-- `agegr/pi-web` — web UI session (kita bikin board sendiri yang lebih ringan)
-- `davebcn87/pi-autoresearch` — autonomous experiment loop (pola `run_experiment`)
-- `prime-agent` — RLM + Continual Harness (capai via pi-dynamic-workflows)
-- `RustyClaw` — swarm + security (port pola, gak fork)
+- **Bun** (TypeScript) — core is Bun-compiled standalone; board UI is zero-dep Bun.
+- **OMNI** (Apache-2.0) — token-saver, bundled inside Pina.
+- **mcp-shrimp-task-manager** — guardrail / task manager (MCP plugin).
+- **@quintinshaw/swarm** — swarm plugin (runtime, no core rebuild).
+- **@quintinshaw/pi-dynamic-workflows** — swarm engine (WorkflowAgent).
 
 ---
 
 ## License
 
-Rujukan utama: **OMP / oh-my-pi** + **Cheasee-Pi**. OMNI (token-saver) berlisensi **Apache 2.0**.
-Config mesin user **tidak** dimasukkan ke repo ini (local-only).
+Primary references: **OMP / oh-my-pi** + **Cheasee-Pi**. OMNI (token-saver) is
+**Apache-2.0**. User machine config is **not** included in this repo (local-only).
+
+Pina is intended to be open-sourced; the `crw` crawler (AGPL-3.0) is acceptable under
+that plan.

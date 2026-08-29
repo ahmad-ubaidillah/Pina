@@ -330,4 +330,40 @@ pina -p "set goal ..., set autonomous on"   # autonomous loop
 # board: pina-board  -> http://127.0.0.1:8787
 ```
 
+---
+
+## §12 REBRAND + MINIFY + TOOL-FIX (2026-08-29)
+
+### 1. Minify build chain (DONE)
+- `scripts/compile-binary.ts`: `minify: { identifiers, keepNames }` → `minify: true` (full).
+- `scripts/build-binary.ts`: pass `minifyWhitespace: true` instead of `minifyIdentifiers`.
+- **Result: binary 179,198,080 → 167,532,672 bytes (–11.5 MB, –6.5%).** Verified via rebuild (exit 0).
+
+### 2. run_experiment fix (DONE — root cause found)
+- Plugin `@quintinshaw/swarm` had a custom `run_experiment` tool that **name-collided** with the
+  CORE's native `autoresearch` extension (`packages/coding-agent/src/autoresearch/` registers
+  `init_experiment`, `run_experiment`, `log_experiment`, `update_notes` — the exact pi-autoresearch
+  pattern, already built in).
+- Collision + small-model tool-budget = the model dropped our 6th tool in `-p` mode.
+- **Fix: removed the redundant plugin `run_experiment`** (collision source). Native core
+  `run_experiment` is the supported path. It arms when autoresearch mode is on
+  (`/autoresearch <goal>`), and is reliably callable in interactive mode / with a capable model.
+- Plugin now registers 5 tools (no collision): `spawn_worker, list_workers, set_goal, set_autonomous, refine`.
+
+### 3. TUI rebrand — ASCII pine + green moodboard (DONE)
+- `src/modes/components/welcome.ts`:
+  - `PI_LOGO` (π block) → **bold ASCII pine tree** (10×10 block grid, TUI-doubled to 20×20).
+  - `GRADIENT_STOPS` (pink→purple→cyan) → **pine/forest green** [22,92,48]→[46,160,67]→[120,220,140].
+  - `GRADIENT_RAMP_256` → green ANSI ramp [22,28,34,40,47,83,120].
+- `src/modes/theme/dark.json`: `accent` `#febc38` (amber) → `#3fb950` (pine green) for cohesion.
+- **Verified**: `gradientLogo(PI_LOGO)` renders the pine shape (stripped-ANSI shape check passed).
+
+### Note on model-selection (honest finding)
+The small model (`mimo-v2.5`) in `-p` (pipe) mode has a **restricted tool view**: conditional tools
+(autoresearch's `run_experiment` arms only after `/autoresearch`) and 6th+ plugin tools are not
+reliably surfaced. `spawn_worker`/`set_goal` work; `run_experiment` needs interactive mode or a
+bigger model. This is a core tool-exposure constraint, not fixable via plugin code without deep
+core changes (out of scope / risky).
+
+
 

@@ -55,6 +55,28 @@ mkdir -p "$HOME/.pina/pina-skills" "$HOME/.pina/browser-actions"
 cp -r "$DIST/pina-skills/." "$HOME/.pina/pina-skills/" 2>/dev/null || true
 cp -r "$DIST/browser-actions/." "$HOME/.pina/browser-actions/" 2>/dev/null || true
 
+# optional: BrowserSkill (real logged-in Chrome) — download prebuilt bsk CLI only.
+# The Chrome/Edge extension + connection is interactive (user must do it once).
+BSK_VER="v0.1.11"
+BSK_TGZ="bsk-${BSK_VER}-${ARCHN}-unknown-linux-musl.tar.gz"
+BSK_URL="https://github.com/Tencent/BrowserSkill/releases/download/cli-${BSK_VER}/$BSK_TGZ"
+if [ "$OSN" = "macos" ]; then
+  BSK_TGZ="bsk-${BSK_VER}-${ARCHN}-apple-darwin.tar.gz"
+  BSK_URL="https://github.com/Tencent/BrowserSkill/releases/download/cli-${BSK_VER}/$BSK_TGZ"
+fi
+if [ ! -e "$BIN/bsk" ]; then
+  echo "  downloading optional BrowserSkill (bsk) CLI…"
+  TMPB="$(mktemp -d)"
+  if curl -fsSL -o "$TMPB/$BSK_TGZ" "$BSK_URL" 2>/dev/null; then
+    tar xzf "$TMPB/$BSK_TGZ" -C "$TMPB"
+    BSK_BIN="$(find "$TMPB" -type f -name bsk | head -1)"
+    [ -n "$BSK_BIN" ] && cp "$BSK_BIN" "$BIN/bsk" && chmod +x "$BIN/bsk" && echo "  ✓ bsk installed (real-browser backend ready)"
+  else
+    echo "  ! bsk download skipped (offline). Form/login tasks will fall back to obscura."
+  fi
+  rm -rf "$TMPB"
+fi
+
 # plugins: swarm + pi-dynamic-workflows (loaded via --plugin-dir)
 mkdir -p "$HOME/.pina/plugins/node_modules/@quintinshaw"
 cp -r "$DIST/plugins/@quintinshaw/swarm" "$HOME/.pina/plugins/node_modules/@quintinshaw/swarm" 2>/dev/null || true
@@ -75,3 +97,8 @@ echo "✓ Pina installed."
 echo "  Run: pina --help"
 echo "  Board: pina-board  → http://127.0.0.1:8787"
 echo "  Ensure \$HOME/.local/bin is on PATH."
+echo ""
+echo "Optional — real-browser (form/login) backend:"
+echo "  bsk is installed. To drive your real Chrome/Edge:"
+echo "    1. Install extension: https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi"
+echo "    2. Open it once to connect. Then 'pina -p \"isi form login di …\"' uses your browser."

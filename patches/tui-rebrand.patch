@@ -1,0 +1,56 @@
+diff --git a/packages/coding-agent/src/modes/components/welcome.ts b/packages/coding-agent/src/modes/components/welcome.ts
+index f80313b..4c366e0 100644
+--- a/packages/coding-agent/src/modes/components/welcome.ts
++++ b/packages/coding-agent/src/modes/components/welcome.ts
+@@ -480,18 +480,30 @@ export class WelcomeComponent implements Component {
+ 	}
+ }
+ 
+-/** Block-grid brand mark shared by the welcome and setup surfaces. */
+-export const PI_LOGO = ["████████████", "   ██  ██   ", "   ██  ██   ", "   ▒▒  ██   ", "       ██   "];
++/** Block-grid brand mark shared by the welcome and setup surfaces. Rebranded
++ *  to a bold ASCII pine tree (Pina = Pi Native Agent, pine motif). */
++export const PI_LOGO = [
++	"   ██    ",
++	"  ████   ",
++	"   ██    ",
++	" ██████  ",
++	"   ██    ",
++	"████████ ",
++	"   ██    ",
++	" ██████  ",
++	"   ██    ",
++	"  ████   ",
++];
+ 
+-/** Multi-stop palette for the diagonal gradient. */
++/** Multi-stop palette for the diagonal gradient. Rebranded to pine/forest green. */
+ const GRADIENT_STOPS: ReadonlyArray<readonly [number, number, number]> = [
+-	[248, 79, 204], // oklch(0.7 0.24 340)
+-	[147, 98, 244], // oklch(0.62 0.21 295)
+-	[0, 219, 228], // oklch(0.81 0.14 200)
++	[22, 92, 48], // deep forest green
++	[46, 160, 67], // pine green
++	[120, 220, 140], // light new-growth green
+ ];
+ 
+-/** 256-color ramp fallback when truecolor isn't available. */
+-const GRADIENT_RAMP_256 = [206, 170, 134, 99, 69, 74, 44];
++/** 256-color ramp fallback when truecolor isn't available (greens). */
++const GRADIENT_RAMP_256 = [22, 28, 34, 40, 47, 83, 120];
+ 
+ /** Half-width of the shine highlight band, expressed in gradient-t units. */
+ const SHINE_HALF_WIDTH = 0.18;
+diff --git a/packages/coding-agent/src/modes/theme/dark.json b/packages/coding-agent/src/modes/theme/dark.json
+index aff61fa..fd1a1a2 100644
+--- a/packages/coding-agent/src/modes/theme/dark.json
++++ b/packages/coding-agent/src/modes/theme/dark.json
+@@ -10,7 +10,7 @@
+ 		"gray": "#777d88",
+ 		"dimGray": "#5f6673",
+ 		"darkGray": "#3d424a",
+-		"accent": "#febc38",
++		"accent": "#3fb950",
+ 		"selectedBg": "#31363f",
+ 		"userMsgBg": "#221d1a",
+ 		"toolPendingBg": "#1d2129",

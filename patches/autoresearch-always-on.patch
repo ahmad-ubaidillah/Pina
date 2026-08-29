@@ -1,0 +1,18 @@
+diff --git a/packages/coding-agent/src/autoresearch/index.ts b/packages/coding-agent/src/autoresearch/index.ts
+index 663c938..2a9df2f 100644
+--- a/packages/coding-agent/src/autoresearch/index.ts
++++ b/packages/coding-agent/src/autoresearch/index.ts
+@@ -93,9 +93,10 @@ export const createAutoresearchExtension: ExtensionFactory = api => {
+ 
+ 		const activeTools = api.getActiveTools();
+ 		const experimentTools = new Set(EXPERIMENT_TOOL_NAMES);
+-		const nextActiveTools = runtime.autoresearchMode
+-			? [...new Set([...activeTools, ...EXPERIMENT_TOOL_NAMES])]
+-			: activeTools.filter(name => !experimentTools.has(name));
++		// Pina rebrand: always expose experiment tools (init_experiment,
++		// run_experiment, log_experiment, update_notes) so `run_experiment`
++		// is callable in -p/pipe mode without first toggling autoresearch.
++		const nextActiveTools = [...new Set([...activeTools, ...EXPERIMENT_TOOL_NAMES])];
+ 		const toolsChanged =
+ 			nextActiveTools.length !== activeTools.length ||
+ 			nextActiveTools.some((name, index) => name !== activeTools[index]);

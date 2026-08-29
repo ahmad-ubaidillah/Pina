@@ -1,0 +1,48 @@
+diff --git a/packages/coding-agent/scripts/build-binary.ts b/packages/coding-agent/scripts/build-binary.ts
+index 50ce67f..430edae 100644
+--- a/packages/coding-agent/scripts/build-binary.ts
++++ b/packages/coding-agent/scripts/build-binary.ts
+@@ -73,7 +73,7 @@ async function runCommand(
+ async function main(): Promise<void> {
+ 	const crossBuild = resolveCrossBuild(Bun.env.CROSS_TARGET);
+ 	const shouldAdhocSign = process.platform === "darwin" && !crossBuild && Bun.env.BUN_NO_CODESIGN_MACHO_BINARY !== "1";
+-	const outName = crossBuild ? `omp-${crossBuild.id}` : "omp";
++		const outName = crossBuild ? `shrimp-${crossBuild.id}` : "shrimp";
+ 	const outputPath = path.join(packageDir, "dist", outName);
+ 	// Generate inside the try so the finally always restores the empty checked-in
+ 	// placeholders (stats client archive, docs index) even on failure.
+@@ -94,6 +94,7 @@ async function main(): Promise<void> {
+ 				entrypoint: path.join(packageDir, "src", "cli.ts"),
+ 				outfile: outputPath,
+ 				transformersVersion,
++				minifyWhitespace: true,
+ 				target: crossBuild?.target,
+ 				executablePath: Bun.env.BUN_COMPILE_EXECUTABLE_PATH || undefined,
+ 				skipBuiltinCodesign: shouldAdhocSign,
+diff --git a/packages/coding-agent/scripts/compile-binary.ts b/packages/coding-agent/scripts/compile-binary.ts
+index 1a4d132..91e8e89 100644
+--- a/packages/coding-agent/scripts/compile-binary.ts
++++ b/packages/coding-agent/scripts/compile-binary.ts
+@@ -18,8 +18,8 @@ export interface CodingAgentCompileOptions {
+ 	readonly target?: Bun.Build.CompileTarget;
+ 	/** Optional unmodified Bun executable used as the standalone runtime template. */
+ 	readonly executablePath?: string;
+-	/** Match release builds that minify identifiers while retaining names. */
+-	readonly minifyIdentifiers?: boolean;
++	/** Match release builds that minify whitespace + identifiers (full minify). */
++	readonly minifyWhitespace?: boolean;
+ 	/** Disable Bun's built-in Darwin signing before the caller re-signs. */
+ 	readonly skipBuiltinCodesign?: boolean;
+ }
+@@ -43,10 +43,7 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
+ 				"process.env.PI_TINY_TRANSFORMERS_VERSION": JSON.stringify(options.transformersVersion),
+ 				"process.env.PI_DOCS_EMBED": JSON.stringify((await buildDocsIndexPayload()).payload),
+ 			},
+-			minify: {
+-				identifiers: options.minifyIdentifiers ?? false,
+-				keepNames: true,
+-			},
++			minify: options.minifyWhitespace ?? true,
+ 			plugins: [await createLegacyPiVirtualModulePlugin()],
+ 			compile: {
+ 				...(options.executablePath

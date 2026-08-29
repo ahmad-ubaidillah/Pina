@@ -1,26 +1,33 @@
 #!/usr/bin/env bun
 /**
- * Shrimp Kanban — lightweight visual board server.
+ * Pina Board — lightweight visual board + hub server.
  *
- * Combination of the best of both worlds:
- *  - VibeKanban: visual drag-drop board + agent/worktree columns, opens at localhost.
- *  - Shrimp: 6-state lifecycle (TODO→RESEARCHING→PLANNING→WORKING→EVALUATING→DONE)
- *    backed by local SQLite (board.sqlite) + mcp-shrimp-task-manager tasks.json.
+ * Per-project: chat, kanban (saved to SQLite, scoped per project), git-tree history
+ * with safe restore (new branch from a commit), and web-editable settings
+ * (heartbeat / cron / gateway — wired in Phase 2).
  *
  * Zero external deps. Bun + bun:sqlite. No Docker, no GitHub.
  */
 
 import { Database } from "bun:sqlite";
 import { homedir } from "node:os";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOT = join(homedir(), "Documents", "shrimp-ai");
-const BOARD = join(ROOT, "board.sqlite");
-const TASKDATA = join(ROOT, ".shrimp", "taskdata", "tasks.json");
+const ROOT = join(homedir(), "Documents", "pina");
+const SHRIMP = join(homedir(), "shrimp-ai");
+const PINA = join(homedir(), ".pina");
+const BOARD = join(SHRIMP, "board.sqlite");
+const PROJECTS_FILE = join(PINA, "projects.json");
+const SETTINGS_FILE = join(PINA, "settings.json");
+const TASKDATA = join(SHRIMP, ".shrimp", "taskdata", "tasks.json");
+const BIN = join(ROOT, "pina-core", "packages", "coding-agent", "dist", "shrimp");
+const OMNI = join(ROOT, "pina-core", "bin", "omni");
+
+mkdirSync(PINA, { recursive: true });
+mkdirSync(SHRIMP, { recursive: true });
 
 const STATES = ["TODO", "RESEARCHING", "PLANNING", "WORKING", "EVALUATING", "DONE"];
-// Column accent colors (shrimp brand: white/blue/black).
 const COLORS: Record<string, string> = {
   TODO: "#94a3b8",
   RESEARCHING: "#a855f7",
@@ -30,49 +37,75 @@ const COLORS: Record<string, string> = {
   DONE: "#22c55e",
 };
 
-let db: Database | null = null;
-if (existsSync(BOARD)) {
-  // Read-write so /api/move can persist drag-drop transitions.
-  // existsSync guard above means we never auto-create a fresh db.
-  db = new Database(BOARD);
-  // Transition history for undo (board UI).
-  db.run(`CREATE TABLE IF NOT EXISTS transitions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id INTEGER NOT NULL,
-    from_state TEXT,
-    to_state TEXT,
-    at TEXT DEFAULT (datetime('now'))
-  )`);
-}
+// --- DB (always open; per-project via project_id) ---
+const db = new Database(BOARD);
+db.run(`CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT,
+  state TEXT DEFAULT 'TODO',
+  desc TEXT DEFAULT '',
+  agent TEXT DEFAULT '',
+  retries INTEGER DEFAULT 0,
+  project_id TEXT DEFAULT 'default',
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+)`);
+db.run(`CREATE TABLE IF NOT EXISTS transitions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id INTEGER NOT NULL,
+  from_state TEXT,
+  to_state TEXT,
+  at TEXT DEFAULT (datetime('now'))
+)`);
 
-function readLocal(): any[] {
-  if (!db) return [];
+// --- helpers: projects / settings ---
+function loadProjects(): any[] {
   try {
-    return db
-      .query("SELECT id, title, state, desc, agent, retries, created_at, updated_at FROM tasks ORDER BY id")
-      .all() as any[];
+    if (!existsSync(PROJECTS_FILE)) return [];
+    const d = JSON.parse(readFileSync(PROJECTS_FILE, "utf8"));
+    return Array.isArray(d) ? d : d.projects ?? [];
   } catch {
     return [];
   }
 }
+function saveProjects(p: any[]) {
+  writeFileSync(PROJECTS_FILE, JSON.stringify(p, null, 2));
+}
+function loadSettings(): any {
+  try {
+    if (!existsSync(SETTINGS_FILE)) return { heartbeat: { enabled: false, intervalSec: 30 }, cron: [], gateway: { telegram: { enabled: false, token: "", chatId: "" } } };
+    return JSON.parse(readFileSync(SETTINGS_FILE, "utf8"));
+  } catch {
+    return { heartbeat: { enabled: false, intervalSec: 30 }, cron: [], gateway: { telegram: { enabled: false, token: "", chatId: "" } } };
+  }
+}
+function saveSettings(s: any) {
+  writeFileSync(SETTINGS_FILE, JSON.stringify(s, null, 2));
+}
+function getProjectPath(id: string): string | null {
+  const p = loadProjects().find((x) => x.id === id);
+  return p && existsSync(p.path) ? p.path : null;
+}
 
-function readMcp(): any[] {
-  if (!existsSync(TASKDATA)) return [];
+// --- board (per project) ---
+function readLocal(projectId: string): any[] {
+  try {
+    return db
+      .query("SELECT id, title, state, desc, agent, retries, project_id FROM tasks WHERE project_id = ? ORDER BY id")
+      .all(projectId) as any[];
+  } catch {
+    return [];
+  }
+}
+function readMcp(projectId: string): any[] {
+  if (projectId !== "default" || !existsSync(TASKDATA)) return [];
   try {
     const data = JSON.parse(readFileSync(TASKDATA, "utf8"));
     const tasks = Array.isArray(data) ? data : data.tasks ?? [];
-    // MCP uses pending|in_progress|completed|blocked — map to Shrimp 6-state lifecycle.
-    const MAP: Record<string, string> = {
-      pending: "TODO",
-      in_progress: "WORKING",
-      completed: "DONE",
-      blocked: "EVALUATING",
-    };
+    const MAP: Record<string, string> = { pending: "TODO", in_progress: "WORKING", completed: "DONE", blocked: "EVALUATING" };
     return tasks.map((t: any) => {
       const raw = (t.status ?? t.state ?? "pending").toLowerCase();
-      const deps = Array.isArray(t.dependencies)
-        ? t.dependencies.map((d: any) => (typeof d === "string" ? d : d.taskId)).filter(Boolean)
-        : [];
+      const deps = Array.isArray(t.dependencies) ? t.dependencies.map((d: any) => (typeof d === "string" ? d : d.taskId)).filter(Boolean) : [];
       return {
         id: "mcp-" + (t.id ?? t.taskId ?? "?"),
         title: t.name ?? t.title ?? "(untitled)",
@@ -88,10 +121,9 @@ function readMcp(): any[] {
     return [];
   }
 }
-
-function buildBoard() {
-  const local = readLocal().map((t) => ({ ...t, source: "local" }));
-  const mcp = readMcp();
+function buildBoard(projectId: string) {
+  const local = readLocal(projectId).map((t) => ({ ...t, source: "local" }));
+  const mcp = readMcp(projectId);
   const all = [...local, ...mcp];
   const columns: Record<string, any[]> = {};
   for (const s of STATES) columns[s] = [];
@@ -99,154 +131,208 @@ function buildBoard() {
     const st = STATES.includes(t.state) ? t.state : "TODO";
     columns[st].push(t);
   }
-  return { states: STATES, colors: COLORS, columns, counts: STATES.map((s) => columns[s].length), updated: new Date().toISOString() };
+  return { states: STATES, colors: COLORS, columns, counts: STATES.map((s) => columns[s].length), updated: new Date().toISOString(), project: projectId };
 }
 
 const HTML = readFileSync(join(import.meta.dir, "index.html"), "utf8");
 
-// Live OMNI session snapshot (best-effort; never crash the board if omni missing).
-const OMNI = "/home/ahmad/Documents/pina/pina-core/bin/omni";
-async function omniSession(): Promise<any | null> {
+// Live OMNI snapshot (best-effort).
+async function omni(args: string[]): Promise<any | null> {
   if (!existsSync(OMNI)) return null;
   try {
-    const p = Bun.spawn([OMNI, "session", "--status", "--json"], {
-      stdout: "pipe", stderr: "ignore",
-    });
+    const p = Bun.spawn([OMNI, ...args, "--json"], { stdout: "pipe", stderr: "ignore" });
     const txt = await new Response(p.stdout).text();
     await p.exited;
-    return JSON.parse(txt);
+    try { return JSON.parse(txt); } catch { return txt; }
   } catch {
     return null;
   }
 }
 
-async function omniStats(): Promise<any | null> {
-  if (!existsSync(OMNI)) return null;
+// git helpers
+async function gitLogAsync(path: string, all = true): Promise<{ commits: any[]; text: string }> {
+  if (!existsSync(join(path, ".git"))) return { commits: [], text: "(bukan git repo)" };
   try {
-    const p = Bun.spawn([OMNI, "stats", "--json"], { stdout: "pipe", stderr: "ignore" });
-    const txt = await new Response(p.stdout).text();
+    const p = Bun.spawn(["git", "-C", path, "log", "--graph", "--oneline", "--decorate", all ? "--all" : "", "-n", "60"], { stdout: "pipe", stderr: "ignore" });
+    const text = await new Response(p.stdout).text();
     await p.exited;
-    return JSON.parse(txt);
+    const commits = text
+      .split("\n")
+      .map((line) => {
+        const m = line.match(/([0-9a-f]{7,40})\s+(.*)$/);
+        if (!m) return null;
+        return { hash: m[1], msg: m[2].replace(/\s*\(.*\)$/, ""), graph: line.split(m[1])[0].trim() };
+      })
+      .filter(Boolean) as any[];
+    return { commits, text };
   } catch {
-    return null;
+    return { commits: [], text: "" };
   }
 }
+async function gitRestore(path: string, commit: string): Promise<{ ok: boolean; branch?: string; error?: string }> {
+  if (!existsSync(join(path, ".git"))) return { ok: false, error: "bukan git repo" };
+  const branch = `pina-restore-${commit.slice(0, 8)}`;
+  try {
+    const p = Bun.spawn(["git", "-C", path, "branch", branch, commit], { stdout: "pipe", stderr: "pipe" });
+    const out = await new Response(p.stdout).text();
+    const err = await new Response((p.stderr as any)).text();
+    await p.exited;
+    if (err) return { ok: false, error: err };
+    return { ok: true, branch };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? String(e) };
+  }
+}
+
+const env = () => ({ ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` });
 
 const server = Bun.serve({
   port: 8787,
   hostname: "127.0.0.1",
   async fetch(req) {
     const url = new URL(req.url);
-    if (url.pathname === "/api/board") {
-      return new Response(JSON.stringify(buildBoard()), {
-        headers: { "content-type": "application/json", "cache-control": "no-store" },
-      });
+
+    // --- projects ---
+    if (url.pathname === "/api/projects" && req.method === "GET") {
+      return json(loadProjects());
     }
-    if (url.pathname === "/api/agent") {
-      const [sess, stats] = await Promise.all([omniSession(), omniStats()]);
-      return new Response(JSON.stringify({ session: sess, stats, ok: !!(sess || stats) }), {
-        headers: { "content-type": "application/json", "cache-control": "no-store" },
-      });
+    if (url.pathname === "/api/projects" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const name = String(b.name ?? "").trim();
+      const path = String(b.path ?? "").trim();
+      if (!name || !path) return json({ ok: false, error: "name & path required" }, 400);
+      if (!existsSync(path)) return json({ ok: false, error: "path tidak ditemukan" }, 400);
+      const list = loadProjects();
+      const id = "p" + Date.now().toString(36);
+      list.push({ id, name, path });
+      saveProjects(list);
+      return json({ ok: true, id, name, path });
+    }
+    if (url.pathname.startsWith("/api/projects/") && req.method === "DELETE") {
+      const id = url.pathname.split("/").pop();
+      const list = loadProjects().filter((p) => p.id !== id);
+      saveProjects(list);
+      return json({ ok: true });
+    }
+    if (url.pathname.endsWith("/gitlog") && req.method === "GET") {
+      const id = url.pathname.split("/")[3];
+      const path = getProjectPath(id);
+      if (!path) return json({ ok: false, error: "project path invalid" }, 400);
+      const r = await gitLogAsync(path, url.searchParams.get("all") !== "0");
+      return json({ ok: true, ...r });
+    }
+    if (url.pathname.endsWith("/restore") && req.method === "POST") {
+      const id = url.pathname.split("/")[3];
+      const path = getProjectPath(id);
+      const b = await req.json().catch(() => ({}));
+      const commit = String(b.commit ?? "").trim();
+      if (!path) return json({ ok: false, error: "project path invalid" }, 400);
+      if (!commit) return json({ ok: false, error: "commit required" }, 400);
+      const r = await gitRestore(path, commit);
+      return json(r, r.ok ? 200 : 400);
+    }
+
+    // --- board (per project) ---
+    if (url.pathname === "/api/board" && req.method === "GET") {
+      const project = url.searchParams.get("project") || "default";
+      return json(buildBoard(project));
     }
     if (url.pathname === "/api/move" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const { id, state } = body;
-      if (db && typeof id === "number" && STATES.includes(state)) {
+      const b = await req.json().catch(() => ({}));
+      const { id, state, project } = b;
+      if (typeof id === "number" && STATES.includes(state)) {
         const cur = db.query("SELECT state FROM tasks WHERE id = ?").get(id) as any;
         const from = cur?.state ?? "TODO";
         db.run("UPDATE tasks SET state = ?, updated_at = datetime('now') WHERE id = ?", [state, id]);
         db.run("INSERT INTO transitions (task_id, from_state, to_state) VALUES (?, ?, ?)", [id, from, state]);
-        return new Response(JSON.stringify({ ok: true }));
+        return json({ ok: true });
       }
-      return new Response(JSON.stringify({ ok: false }), { status: 400 });
+      return json({ ok: false }, 400);
+    }
+    if (url.pathname === "/api/add" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const title = String(b.title ?? "").slice(0, 500).trim();
+      const project = String(b.project ?? "default");
+      if (!title) return json({ ok: false, error: "title required" }, 400);
+      db.run(
+        "INSERT INTO tasks (title, state, project_id) VALUES (?, 'TODO', ?)",
+        [title, project]
+      );
+      return json({ ok: true });
     }
     if (url.pathname === "/api/undo" && req.method === "POST") {
-      if (db) {
-        const last = db.query("SELECT id, task_id, from_state FROM transitions ORDER BY id DESC LIMIT 1").get() as any;
-        if (last) {
-          db.run("UPDATE tasks SET state = ? WHERE id = ?", [last.from_state, last.task_id]);
-          db.run("DELETE FROM transitions WHERE id = ?", [last.id]);
-          return new Response(JSON.stringify({ ok: true, task_id: last.task_id, state: last.from_state }));
-        }
+      const last = db.query("SELECT id, task_id, from_state FROM transitions ORDER BY id DESC LIMIT 1").get() as any;
+      if (last) {
+        db.run("UPDATE tasks SET state = ? WHERE id = ?", [last.from_state, last.task_id]);
+        db.run("DELETE FROM transitions WHERE id = ?", [last.id]);
+        return json({ ok: true, task_id: last.task_id, state: last.from_state });
       }
-      return new Response(JSON.stringify({ ok: false }), { status: 400 });
+      return json({ ok: false }, 400);
     }
-    if (url.pathname === "/api/launch" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const prompt = String(body.prompt ?? "").slice(0, 2000);
-      if (!prompt) return new Response(JSON.stringify({ ok: false, error: "empty prompt" }), { status: 400 });
-      // Launch shrimp -p in its own session (detached). No GitHub, local-only.
-      const child = Bun.spawn(
-        ["/home/ahmad/Documents/pina/pina-core/packages/coding-agent/dist/shrimp", "-p", prompt],
-        { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
-      );
-      return new Response(JSON.stringify({ ok: true, pid: child.pid }));
-    }
-    if (url.pathname === "/api/spawn" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const prompt = String(body.prompt ?? "").slice(0, 2000);
-      if (!prompt) return new Response(JSON.stringify({ ok: false, error: "empty prompt" }), { status: 400 });
-      // Spawn a swarm worker via the shrimp-swarm plugin's spawn_worker tool.
-      const child = Bun.spawn(
-        ["/home/ahmad/Documents/shrimp-ai/pina-core/packages/coding-agent/dist/shrimp",
-         "-p", `use the spawn_worker tool: ${prompt}`],
-        { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
-      );
-      return new Response(JSON.stringify({ ok: true, pid: child.pid }));
+
+    // --- agent / swarm ---
+    if (url.pathname === "/api/agent" && req.method === "GET") {
+      const [sess, stats] = await Promise.all([omni(["session", "--status"]), omni(["stats"])]);
+      return json({ session: sess, stats, ok: !!(sess || stats) });
     }
     if (url.pathname === "/api/swarm-state" && req.method === "GET") {
-      // Read the persistent swarm state file written by @quintinshaw/swarm.
-      const SP = join(homedir(), ".pina", "swarm-state.json");
+      const SP = join(PINA, "swarm-state.json");
       try {
         const s = existsSync(SP) ? JSON.parse(readFileSync(SP, "utf8")) : {};
-        return new Response(JSON.stringify({ ok: true, state: {
-          goal: s.goal ?? null,
-          autonomous: s.autonomous ?? false,
-          budgetTurns: s.budgetTurns ?? 0,
-          refinements: (s.refinements ?? []).length,
-        }}), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+        return json({ ok: true, state: { goal: s.goal ?? null, autonomous: s.autonomous ?? false, budgetTurns: s.budgetTurns ?? 0, refinements: (s.refinements ?? []).length } });
       } catch {
-        return new Response(JSON.stringify({ ok: false }), { status: 500 });
+        return json({ ok: false }, 500);
       }
     }
     if (url.pathname === "/api/swarm" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const action = String(body.action ?? body.command ?? "").slice(0, 50);
-      const arg = String(body.arg ?? body.text ?? "").slice(0, 2000);
-      // Map UI actions to the shrimp-swarm plugin tools (set_goal / set_autonomous / refine).
+      const b = await req.json().catch(() => ({}));
+      const action = String(b.action ?? "").slice(0, 50);
+      const arg = String(b.arg ?? "").slice(0, 2000);
       let cmd = "";
-      if (action === "goal") {
-        cmd = `Call set_goal with text '${arg.replace(/'/g, "")}'.`;
-      } else if (action === "autonomous") {
+      if (action === "goal") cmd = `Call set_goal with text '${arg.replace(/'/g, "")}'.`;
+      else if (action === "autonomous") {
         const mode = arg === "off" ? "off" : "on";
-        const budget = Number(body.budget ?? 0);
+        const budget = Number(b.budget ?? 0);
         cmd = `Call set_autonomous with mode '${mode}'${budget > 0 ? ` and budget ${budget}` : ""}.`;
-      } else if (action === "refine") {
-        cmd = `Call refine.`;
-      } else {
-        cmd = String(body.command ?? "").slice(0, 200);
-      }
-      if (!cmd) return new Response(JSON.stringify({ ok: false, error: "empty command" }), { status: 400 });
-      const child = Bun.spawn(
-        ["/home/ahmad/Documents/pina/pina-core/packages/coding-agent/dist/shrimp", "-p", cmd],
-        { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
-      );
-      return new Response(JSON.stringify({ ok: true, pid: child.pid }));
+      } else if (action === "refine") cmd = `Call refine.`;
+      if (!cmd) return json({ ok: false, error: "empty command" }, 400);
+      const cwd = getProjectPath(b.project) || undefined;
+      Bun.spawn([BIN, "-p", cmd], { stdout: "ignore", stderr: "ignore", stdin: "ignore", cwd, env: env() });
+      return json({ ok: true });
     }
-    // --- Chat: stream a pina -p session back to the browser over SSE ---
+
+    // --- launch / spawn / chat (cwd-scoped to project) ---
+    const bodyCwd = async (b: any) => getProjectPath(b.project) || undefined;
+
+    if (url.pathname === "/api/launch" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const prompt = String(b.prompt ?? "").slice(0, 2000);
+      if (!prompt) return json({ ok: false, error: "empty prompt" }, 400);
+      const cwd = await bodyCwd(b);
+      const child = Bun.spawn([BIN, "-p", prompt], { stdout: "ignore", stderr: "ignore", stdin: "ignore", cwd, env: env() });
+      return json({ ok: true, pid: child.pid });
+    }
+    if (url.pathname === "/api/spawn" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const prompt = String(b.prompt ?? "").slice(0, 2000);
+      if (!prompt) return json({ ok: false, error: "empty prompt" }, 400);
+      const role = b.role ? ` with role '${String(b.role).slice(0, 20)}'` : "";
+      const cwd = await bodyCwd(b);
+      const child = Bun.spawn([BIN, "-p", `use the spawn_worker tool${role}: ${prompt}`], { stdout: "ignore", stderr: "ignore", stdin: "ignore", cwd, env: env() });
+      return json({ ok: true, pid: child.pid });
+    }
     if (url.pathname === "/api/chat" && req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      const message = String(body.message ?? "").slice(0, 4000);
-      if (!message) return new Response(JSON.stringify({ ok: false, error: "empty message" }), { status: 400 });
-      const model = String(body.model ?? "sumopod/mimo-v2.5").slice(0, 80);
+      const b = await req.json().catch(() => ({}));
+      const message = String(b.message ?? "").slice(0, 4000);
+      if (!message) return json({ ok: false, error: "empty message" }, 400);
+      const model = String(b.model ?? "sumopod/mimo-v2.5").slice(0, 80);
+      const cwd = await bodyCwd(b);
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
-          const child = Bun.spawn(
-            ["/home/ahmad/Documents/pina/pina-core/packages/coding-agent/dist/shrimp", "-p", message, "--model", model],
-            { stdout: "pipe", stderr: "pipe", stdin: "ignore",
-              env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
-          );
+          const child = Bun.spawn([BIN, "-p", message, "--model", model], {
+            stdout: "pipe", stderr: "pipe", stdin: "ignore", cwd, env: env(),
+          });
           const push = (s: string) => controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: s })}\n\n`));
           const dec = new TextDecoder();
           const pump = async (rs: ReadableStream<Uint8Array> | null | undefined) => {
@@ -266,36 +352,36 @@ const server = Bun.serve({
           });
         },
       });
-      return new Response(stream, {
-        headers: { "content-type": "text/event-stream", "cache-control": "no-store", "connection": "keep-alive" },
-      });
+      return new Response(stream, { headers: { "content-type": "text/event-stream", "cache-control": "no-store", "connection": "keep-alive" } });
     }
-    // --- Memory: surface OMNI memory (query/engram/patterns/stats) ---
+
+    // --- memory ---
     if (url.pathname === "/api/memory" && req.method === "GET") {
-      const run = async (args: string[]) => {
-        if (!existsSync(OMNI)) return null;
-        try {
-          const p = Bun.spawn([OMNI, ...args, "--json"], { stdout: "pipe", stderr: "ignore" });
-          const txt = await new Response(p.stdout).text();
-          await p.exited;
-          try { return JSON.parse(txt); } catch { return txt; }
-        } catch { return null; }
-      };
       const [query, engram, patterns, stats] = await Promise.all([
-        run(["query", "*"]),
-        run(["engram"]),
-        run(["patterns"]),
-        run(["stats"]),
+        omni(["query", "*"]), omni(["engram"]), omni(["patterns"]), omni(["stats"]),
       ]);
-      return new Response(JSON.stringify({ ok: true, query, engram, patterns, stats }), {
-        headers: { "content-type": "application/json", "cache-control": "no-store" },
-      });
+      return json({ ok: true, query, engram, patterns, stats });
     }
+
+    // --- settings ---
+    if (url.pathname === "/api/settings" && req.method === "GET") {
+      return json(loadSettings());
+    }
+    if (url.pathname === "/api/settings" && req.method === "POST") {
+      const s = await req.json().catch(() => ({}));
+      saveSettings(s);
+      return json({ ok: true });
+    }
+
     if (url.pathname === "/" || url.pathname === "/index.html") {
       return new Response(HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
     }
     return new Response("Not found", { status: 404 });
   },
 });
+
+function json(d: any, status = 200) {
+  return new Response(JSON.stringify(d), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+}
 
 console.log(`🍍 Pina board → http://127.0.0.1:${server.port}`);

@@ -3,17 +3,24 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>🍍 Pina Kanban</title>
+<title>🍍 Pina Board</title>
 <style>
-  :root { --blue:#146ef5; --ink:#0d0d0d; --line:#e5e7eb; --muted:#64748b; }
+  :root { --blue:#146ef5; --ink:#0d0d0d; --line:#e5e7eb; --muted:#64748b; --green:#16a34a; --red:#dc2626; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-         background:#fff; color:var(--ink); }
-  header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px dashed var(--line); }
-  header h1 { font-size:18px; margin:0; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#fff; color:var(--ink); }
+  header { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; }
   header .sub { color:var(--muted); font-size:12px; }
-  .board { display:flex; gap:12px; padding:16px 20px; overflow-x:auto; align-items:flex-start; }
-  .col { background:#fafafa; border:1px solid var(--line); border-radius:10px; min-width:230px; width:230px; flex:0 0 auto; }
+  select, input, textarea { font-family:inherit; }
+  .sel { font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; }
+  .inp { width:100%; font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; margin:4px 0; }
+  .btn { font-size:11px; font-weight:600; color:var(--blue); background:#fff; border:1px solid var(--blue); border-radius:6px; padding:4px 10px; cursor:pointer; }
+  .btn:hover { background:var(--blue); color:#fff; }
+  .btn.green { color:var(--green); border-color:var(--green); } .btn.green:hover { background:var(--green); color:#fff; }
+  .btn.red { color:var(--red); border-color:var(--red); } .btn.red:hover { background:var(--red); color:#fff; }
+  .btn.sm { padding:2px 7px; font-size:10px; }
+  .board { display:flex; gap:12px; padding:14px 18px; overflow-x:auto; align-items:flex-start; }
+  .col { background:#fafafa; border:1px solid var(--line); border-radius:10px; min-width:220px; width:220px; flex:0 0 auto; }
   .col-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); }
   .dot { width:9px; height:9px; border-radius:50%; }
   .col-head .name { font-weight:600; font-size:13px; }
@@ -26,310 +33,268 @@
   .badge { font-size:10px; padding:1px 7px; border-radius:20px; background:#f1f5f9; color:#334155; border:1px solid var(--line); }
   .badge.agent { background:#eef4ff; color:#146ef5; border-color:#d6e4ff; }
   .badge.retry { background:#fff4e5; color:#b45309; border-color:#fde6c4; }
-  .btn { font-size:11px; font-weight:600; color:var(--blue); background:#fff; border:1px solid var(--blue);
-         border-radius:6px; padding:3px 9px; cursor:pointer; margin-top:7px; }
-  .btn:hover { background:var(--blue); color:#fff; }
-  .inp { width:100%; font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; margin:4px 0; }
-  .card.drag-over { outline:2px dashed var(--blue); }
   .empty { color:#cbd5e1; font-size:11px; text-align:center; padding:8px 0; }
-  .panel { width:300px; flex:0 0 auto; border:1px solid var(--line); border-radius:10px; background:#fafafa; padding:12px 14px; align-self:stretch; }
-  .panel h2 { font-size:13px; margin:0 0 8px; display:flex; align-items:center; gap:6px; }
+  .card.drag-over { outline:2px dashed var(--blue); }
+  .panel { width:320px; flex:0 0 auto; border:1px solid var(--line); border-radius:10px; background:#fafafa; padding:12px 14px; align-self:stretch; }
+  .panel h2 { font-size:13px; margin:0 0 8px; }
   .panel .row { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-bottom:1px dashed #eef2f7; }
-  .panel .row:last-child { border-bottom:0; }
   .panel .k { color:var(--muted); }
   .panel .v { font-weight:600; }
   .panel .sec { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 4px; }
-  .panel .file { font-size:11px; padding:2px 0; display:flex; justify-content:space-between; }
   .panel .pill { font-size:10px; background:#eef4ff; color:#146ef5; border:1px solid #d6e4ff; border-radius:20px; padding:1px 7px; }
-  .panel .warn { color:#b45309; }
-  .panel .ok { color:#16a34a; }
-  .chatlog { height:240px; overflow-y:auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; font-size:12px; line-height:1.4; margin:6px 0; white-space:pre-wrap; }
+  .panel .warn { color:#b45309; } .panel .ok { color:#16a34a; }
+  .chatlog { height:220px; overflow-y:auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; font-size:12px; line-height:1.4; margin:6px 0; white-space:pre-wrap; }
   .chatlog .me { color:#146ef5; font-weight:600; }
-  .chatinput { width:100%; font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; }
   .mem { font-size:11px; max-height:200px; overflow-y:auto; }
   .mem .item { padding:3px 0; border-bottom:1px dashed #eef2f7; white-space:pre-wrap; }
-  .mem .tag { font-size:10px; color:#146ef5; }
-  footer { padding:8px 20px; color:var(--muted); font-size:11px; border-top:1px dashed var(--line); }
+  .gitlog { font-family: ui-monospace, Menlo, monospace; font-size:11px; line-height:1.5; white-space:pre; max-height:320px; overflow:auto; background:#0d0d0d; color:#cbd5e1; padding:8px; border-radius:8px; }
+  .git-cmds { display:flex; gap:6px; align-items:center; margin:6px 0; }
+  .hidden { display:none !important; }
+  footer { padding:8px 18px; color:var(--muted); font-size:11px; border-top:1px dashed var(--line); }
+  .tabs { display:flex; gap:6px; }
+  .tab { font-size:12px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; cursor:pointer; color:var(--muted); }
+  .tab.active { background:var(--ink); color:#fff; border-color:var(--ink); }
 </style>
 </head>
 <body>
 <header>
-  <h1>🍍 Pina Kanban</h1>
+  <h1>🍍 Pina Board</h1>
   <span class="sub" id="updated">memuat…</span>
-  <button class="btn" id="undoBtn" style="margin-left:auto">Undo</button>
+  <label>Project: <select id="projSel" class="sel"></select></label>
+  <button class="btn sm" id="addProj">+ Project</button>
+  <button class="btn sm" id="undoBtn">Undo</button>
+  <span style="margin-left:auto" class="tabs">
+    <span class="tab active" data-tab="board">Board</span>
+    <span class="tab" data-tab="git">Git Tree</span>
+    <span class="tab" data-tab="settings">Settings</span>
+  </span>
 </header>
-<div class="board" id="board"></div>
-<div class="panel" id="agent"><h2>🤖 OMNI live</h2><div class="sub">memuat…</div></div>
-<footer>Drag kartu antar kolom untuk pindah state • SQLite lokal + mcp-pina-task-manager • auto-refresh 3s</footer>
+
+<!-- BOARD -->
+<div id="view-board">
+  <div style="padding:8px 18px 0"><input id="newTask" class="inp" style="max-width:360px" placeholder="tambah task baru… (Enter)" /></div>
+  <div class="board" id="board"></div>
+  <div class="panel" id="agent"><h2>🤖 OMNI live</h2><div class="sub">memuat…</div></div>
+  <div class="panel" id="swarm"><h2>Swarm control</h2>…</div>
+  <div class="panel" id="chat"><h2>💬 Chat (pina -p)</h2>…</div>
+  <div class="panel" id="memory"><h2>🧠 Memory</h2>…</div>
+</div>
+
+<!-- GIT TREE -->
+<div id="view-git" class="hidden" style="padding:14px 18px">
+  <div class="git-cmds">
+    <button class="btn sm" id="gitRefresh">Refresh</button>
+    <label class="btn sm"><input type="checkbox" id="gitAll" checked /> --all</label>
+    <span class="sub" id="gitPath"></span>
+  </div>
+  <div class="gitlog" id="gitLog">pilih project…</div>
+  <div id="gitRestoreMsg" style="margin-top:8px"></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="view-settings" class="hidden" style="padding:18px; max-width:680px">
+  <h2>⚙️ Settings</h2>
+  <div class="sec" style="font-weight:600;margin:14px 0 4px">Heartbeat (autonomous loop)</div>
+  <label><input type="checkbox" id="hbEnabled" /> enabled</label>
+  <input id="hbInterval" class="inp" style="max-width:200px" placeholder="interval detik (misal 30)" />
+  <div class="sec" style="font-weight:600;margin:14px 0 4px">Gateway — Telegram</div>
+  <label><input type="checkbox" id="tgEnabled" /> enabled</label>
+  <input id="tgToken" class="inp" placeholder="bot token (simpan nanti)" />
+  <input id="tgChat" class="inp" placeholder="chat id" />
+  <div class="sec" style="font-weight:600;margin:14px 0 4px">Cron jobs</div>
+  <textarea id="cronList" class="inp" rows="4" placeholder='[{"at":"0 9 * * *","action":"goal","arg":"ci daily"}]'></textarea>
+  <button class="btn" id="saveSettings">Save</button>
+  <span id="settingsMsg" style="margin-left:8px"></span>
+</div>
+
+<footer>Per-project chat • kanban tersimpan • git-tree + restore (branch baru) • settings web • auto-refresh 3s</footer>
 
 <script>
 const STATES = [];
 const COLORS = {};
-let board = document.getElementById("board");
+let curProject = "default";
+const $ = (s) => document.querySelector(s);
+function escape(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 
-async function load() {
-  const r = await fetch("/api/board");
+// ---- projects ----
+async function loadProjects(){
+  const d = await (await fetch("/api/projects")).json();
+  const sel = $("#projSel");
+  sel.innerHTML = `<option value="default">default</option>` + d.map(p=>`<option value="${p.id}">${escape(p.name)}</option>`).join("");
+  sel.value = curProject;
+}
+async function switchProject(p){ curProject=p; await Promise.all([loadBoard(), loadGit()]); }
+
+// ---- board ----
+let board = $("#board");
+async function loadBoard(){
+  const r = await fetch("/api/board?project="+encodeURIComponent(curProject));
   const d = await r.json();
-  STATES.length = 0; STATES.push(...d.states);
-  Object.assign(COLORS, d.colors);
-  board.innerHTML = "";
-  for (const s of d.states) {
-    const col = document.createElement("div");
-    col.className = "col";
-    col.dataset.state = s;
-    const items = d.columns[s] || [];
-    col.innerHTML = `<div class="col-head"><span class="dot" style="background:${d.colors[s]}"></span>
-      <span class="name">${s}</span><span class="cnt">${items.length}</span></div>
-      <div class="cards" data-state="${s}"></div>`;
-    const cards = col.querySelector(".cards");
-    if (!items.length) cards.innerHTML = `<div class="empty">— kosong —</div>`;
-    for (const t of items) cards.appendChild(card(t));
+  STATES.length=0; STATES.push(...d.states); Object.assign(COLORS,d.colors);
+  board.innerHTML="";
+  for(const s of d.states){
+    const col=document.createElement("div"); col.className="col"; col.dataset.state=s;
+    const items=d.columns[s]||[];
+    col.innerHTML=`<div class="col-head"><span class="dot" style="background:${d.colors[s]}"></span><span class="name">${s}</span><span class="cnt">${items.length}</span></div><div class="cards" data-state="${s}"></div>`;
+    const cards=col.querySelector(".cards");
+    if(!items.length) cards.innerHTML=`<div class="empty">— kosong —</div>`;
+    for(const t of items) cards.appendChild(card(t));
     board.appendChild(col);
   }
-  document.getElementById("updated").textContent = "update " + d.updated;
+  $("#updated").textContent="update "+d.updated;
 }
-
-function card(t) {
-  const el = document.createElement("div");
-  el.className = "card";
-  el.draggable = true;
-  el.dataset.id = t.id;
-  el.dataset.source = t.source || "local";
-  let meta = "";
-  if (t.agent) meta += `<span class="badge agent">agent: ${escape(t.agent)}</span>`;
-  if (t.retries > 0) meta += `<span class="badge retry">retry ${t.retries}</span>`;
-  if (t.source === "mcp") meta += `<span class="badge">mcp</span>`;
-  if (t.deps && t.deps.length) meta += `<span class="badge">deps: ${t.deps.length}</span>`;
-  const btn = `<button class="btn" data-launch="${escape(t.title)}">Launch agent</button>`;
-  const spawnBtn = `<button class="btn spawn" data-spawn="${escape(t.title)}">Spawn worker</button>`;
-  el.innerHTML = `<div class="t">${escape(t.title)}</div>${meta ? `<div class="meta">${meta}</div>` : ""}${btn}${spawnBtn}`;
-  el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", JSON.stringify({ id: t.id, source: t.source || "local" })); });
-  el.querySelector(".btn").addEventListener("click", async (e) => {
-    e.stopPropagation();
-    const b = e.target;
-    b.disabled = true; b.textContent = "launching…";
-    const r = await fetch("/api/launch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt: t.title }) });
-    const j = await r.json().catch(() => ({}));
-    b.textContent = j.ok ? "launched ✓" : "failed";
-    setTimeout(() => { b.disabled = false; b.textContent = "Launch agent"; }, 2500);
+function card(t){
+  const el=document.createElement("div"); el.className="card"; el.draggable=true; el.dataset.id=t.id; el.dataset.source=t.source||"local";
+  let meta="";
+  if(t.agent) meta+=`<span class="badge agent">${escape(t.agent)}</span>`;
+  if(t.retries>0) meta+=`<span class="badge retry">retry ${t.retries}</span>`;
+  if(t.source==="mcp") meta+=`<span class="badge">mcp</span>`;
+  el.innerHTML=`<div class="t">${escape(t.title)}</div>${meta?`<div class="meta">${meta}</div>`:""}<button class="btn sm" data-launch="${escape(t.title)}">Launch</button><button class="btn sm spawn" data-spawn="${escape(t.title)}">Spawn</button>`;
+  el.addEventListener("dragstart",e=>e.dataTransfer.setData("text/plain",JSON.stringify({id:t.id,source:t.source||"local"})));
+  el.querySelector(".btn").addEventListener("click",async e=>{
+    e.stopPropagation(); const b=e.target; b.disabled=true; b.textContent="…";
+    const r=await fetch("/api/launch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:t.title,project:curProject})});
+    const j=await r.json().catch(()=>({})); b.textContent=j.ok?"launched ✓":"failed"; setTimeout(()=>{b.disabled=false;b.textContent="Launch";},2500);
   });
   return el;
 }
-
-board.addEventListener("dragover", (e) => {
-  const cards = e.target.closest(".cards");
-  if (!cards) return;
-  e.preventDefault();
-  cards.parentElement.querySelectorAll(".card").forEach(c => c.classList.remove("drag-over"));
-  cards.classList.add && null;
-});
-board.addEventListener("dragover", (e) => { if (e.target.closest(".cards")) e.preventDefault(); });
-board.addEventListener("drop", async (e) => {
-  const cards = e.target.closest(".cards");
-  if (!cards) return;
-  e.preventDefault();
-  const state = cards.dataset.state;
-  let data; try { data = JSON.parse(e.dataTransfer.getData("text/plain")); } catch { return; }
-  if (data.source === "local" && typeof data.id === "number") {
-    await fetch("/api/move", { method:"POST", headers:{"content-type":"application/json"},
-      body: JSON.stringify({ id: data.id, state }) });
-    load();
+board.addEventListener("dragover",e=>{if(e.target.closest(".cards"))e.preventDefault();});
+board.addEventListener("drop",async e=>{
+  const cards=e.target.closest(".cards"); if(!cards)return; e.preventDefault();
+  const state=cards.dataset.state; let data; try{data=JSON.parse(e.dataTransfer.getData("text/plain"));}catch{return;}
+  if(data.source==="local"&&typeof data.id==="number"){
+    await fetch("/api/move",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:data.id,state,project:curProject})});
+    loadBoard();
   }
 });
-
-function escape(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
-
-async function loadAgent() {
-  const el = document.getElementById("agent");
-  let d;
-  try { d = await (await fetch("/api/agent")).json(); } catch { el.innerHTML = "<h2>🤖 OMNI</h2><div class='sub'>offline</div>"; return; }
-  if (!d.ok || !d.session) { el.innerHTML = "<h2>🤖 OMNI</h2><div class='sub'>offline</div>"; return; }
-  const s = d.session, st = d.stats;
-  let html = `<h2>🤖 OMNI live <span class="pill">${escape(s.agent_id||"pi")}</span></h2>`;
-  html += `<div class="row"><span class="k">project</span><span class="v">${escape(s.domain||"-")}</span></div>`;
-  html += `<div class="row"><span class="k">context</span><span class="v ${s.context_pressure==="High"?"warn":"ok"}">${escape(s.context_pressure||"-")}</span></div>`;
-  html += `<div class="row"><span class="k">commands</span><span class="v">${s.command_count??0}</span></div>`;
-  html += `<div class="row"><span class="k">tokens saved</span><span class="v">${s.tokens_saved??0}</span></div>`;
-  if (st && st.periods) {
-    const at = st.periods.find(p=>p.label==="all_time") || st.periods[st.periods.length-1];
-    if (at) html += `<div class="row"><span class="k">savings (all)</span><span class="v">${at.savings_pct.toFixed(1)}%</span></div>`;
-  }
-  if (s.active_errors && s.active_errors.length) {
-    html += `<div class="sec">⚠ active errors (${s.active_errors.length})</div>`;
-    for (const e of s.active_errors.slice(0,3)) html += `<div class="file warn">${escape(String(e).slice(0,48))}…</div>`;
-  }
-  if (s.hot_files && s.hot_files.length) {
-    html += `<div class="sec">🔥 hot files</div>`;
-    for (const f of s.hot_files.slice(0,5)) html += `<div class="file"><span>${escape(f.path)}</span><span class="pill">${f.count}×</span></div>`;
-  }
-  el.innerHTML = html;
-}
-
-load();
-loadAgent();
-setInterval(load, 3000);
-setInterval(loadAgent, 5000);
-
-document.getElementById("undoBtn").addEventListener("click", async () => {
-  const r = await fetch("/api/undo", { method: "POST" });
-  const j = await r.json().catch(() => ({}));
-  if (j.ok) load();
+$("#newTask").addEventListener("keydown",async e=>{
+  if(e.key!=="Enter")return; const v=e.target.value.trim(); if(!v)return;
+  await fetch("/api/add",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title:v,project:curProject})});
+  e.target.value=""; loadBoard();
+});
+$("#undoBtn").addEventListener("click",async()=>{await fetch("/api/undo",{method:"POST"});loadBoard();});
+$("#projSel").addEventListener("change",e=>switchProject(e.target.value));
+$("#addProj").addEventListener("click",async()=>{
+  const name=prompt("Nama project?"); if(!name)return;
+  const path=prompt("Path absolut folder project (harus git repo)?",homedir()+"/Documents"); if(!path)return;
+  const r=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name,path})});
+  const j=await r.json().catch(()=>({})); if(j.ok){await loadProjects(); curProject=j.id; $("#projSel").value=j.id; switchProject(j.id);} else alert(j.error||"gagal");
 });
 
-// Swarm: spawn worker button on each card.
-document.addEventListener("click", async (e) => {
-  const b = e.target.closest(".btn.spawn");
-  if (!b) return;
-  e.stopPropagation();
-  const title = b.dataset.spawn || "";
-  b.disabled = true; b.textContent = "spawning…";
-  const r = await fetch("/api/spawn", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt: title }) });
-  const j = await r.json().catch(() => ({}));
-  b.textContent = j.ok ? "spawned ✓" : "failed";
-  setTimeout(() => { b.disabled = false; b.textContent = "Spawn worker"; }, 2500);
+// ---- agent / swarm / chat / memory (per-project) ----
+async function loadAgent(){
+  const el=$("#agent"); let d;
+  try{d=await (await fetch("/api/agent")).json();}catch{el.innerHTML="<h2>🤖 OMNI</h2><div>offline</div>";return;}
+  if(!d.ok||!d.session){el.innerHTML="<h2>🤖 OMNI</h2><div>offline</div>";return;}
+  const s=d.session,st=d.stats; let h=`<h2>🤖 OMNI <span class="pill">${escape(s.agent_id||"pi")}</span></h2>`;
+  h+=`<div class="row"><span class="k">context</span><span class="v ${s.context_pressure==="High"?"warn":"ok"}">${escape(s.context_pressure||"-")}</span></div>`;
+  h+=`<div class="row"><span class="k">commands</span><span class="v">${s.command_count??0}</span></div>`;
+  h+=`<div class="row"><span class="k">tokens saved</span><span class="v">${s.tokens_saved??0}</span></div>`;
+  if(st&&st.periods){const at=st.periods.find(p=>p.label==="all_time")||st.periods.at(-1); if(at)h+=`<div class="row"><span class="k">savings</span><span class="v">${at.savings_pct.toFixed(1)}%</span></div>`;}
+  el.innerHTML=h;
+}
+async function loadSwarm(){
+  try{const d=await (await fetch("/api/swarm-state")).json(); if(!d.ok)return; const st=d.state;
+    $("#swarm").innerHTML=`<h2>Swarm control</h2>
+      <div class="row"><span class="k">goal</span></div><input id="goalInput" class="inp" placeholder="set persistent goal…"/><button class="btn sm" id="setGoal">Set</button>
+      <div class="row" style="margin-top:8px"><span class="k">autonomous</span><button class="btn sm" id="autoOn">On</button><button class="btn sm" id="autoOff">Off</button></div>
+      <div class="row" style="margin-top:8px"><span class="k">budget</span></div><input id="budgetInput" class="inp" placeholder="turns"/>
+      <button class="btn sm" id="setBudget" style="margin-top:4px">Set budget</button>
+      <div class="sub" id="swarmStatus" style="margin-top:8px">goal: <b>${st.goal?escape(st.goal):"—"}</b><br>autonomous: <b>${st.autonomous?"ON":"OFF"}</b>${st.budgetTurns?` (budget ${st.budgetTurns})`:""}<br>lessons: ${st.refinements}</div>`;
+    $("#setGoal").onclick=async()=>{await fetch("/api/swarm",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"goal",arg:$("#goalInput").value.trim(),project:curProject})});loadSwarm();};
+    $("#autoOn").onclick=async()=>{await fetch("/api/swarm",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"autonomous",arg:"on",budget:Number($("#budgetInput").value)||0,project:curProject})});loadSwarm();};
+    $("#autoOff").onclick=async()=>{await fetch("/api/swarm",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"autonomous",arg:"off",project:curProject})});loadSwarm();};
+  }catch{}
+}
+const chatLog=document.createElement("div");
+function buildChat(){
+  $("#chat").innerHTML=`<h2>💬 Chat (pina -p)</h2><div class="chatlog" id="chatLog"></div>
+    <input id="chatInput" class="inp" placeholder="tanya Pina… (Enter)"/><button class="btn sm" id="chatSend">Kirim</button>
+    <button class="btn sm" id="chatClear">Clear</button>
+    <select id="chatRole" class="sel" style="margin-top:6px"><option value="">(no role)</option><option>fe</option><option>be</option><option>qa</option><option>pm</option><option>ba</option><option>devops</option><option>cybersec</option><option>uiux</option><option>techwriter</option><option>data</option><option>ml</option><option>mobile</option><option>sre</option><option>growth</option><option>legal</option></select>`;
+}
+function appendChat(text,who){const d=document.createElement("div");if(who==="me")d.className="me";d.textContent=(who==="me"?"› ":"")+text;$("#chatLog").appendChild(d);$("#chatLog").scrollTop=$("#chatLog").scrollHeight;}
+async function sendChat(){
+  const msg=$("#chatInput").value.trim(); if(!msg)return; $("#chatInput").value=""; appendChat(msg,"me");
+  const log=document.createElement("div"); $("#chatLog").appendChild(log);
+  try{
+    const resp=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:msg,project:curProject})});
+    const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf="";
+    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value);const lines=buf.split("\n\n");buf=lines.pop();
+      for(const ln of lines){if(ln.startsWith("data: ")){try{const j=JSON.parse(ln.slice(6));if(j.t)log.textContent+=j.t;}catch{}}}}
+  }catch(e){log.textContent+="\n[error: "+e.message+"]";}
+}
+const memBody=document.createElement("div");
+function buildMemory(){
+  $("#memory").innerHTML=`<h2>🧠 Memory</h2><button class="btn sm" id="memRefresh">Refresh</button><div class="mem" id="memBody" style="margin-top:6px">— klik refresh —</div>`;
+  $("#memRefresh").onclick=loadMemory;
+}
+async function loadMemory(){
+  const b=$("#memBody"); b.innerHTML="memuat…";
+  try{const d=await (await fetch("/api/memory")).json(); if(!d.ok){b.textContent="OMNI offline";return;}
+    let h="";const sec=(t,items)=>{if(!items)return"";const arr=Array.isArray(items)?items:(items&&typeof items==="object"?[items]:[]);if(!arr.length)return`<div class="sec">${t}: —</div>`;return`<div class="sec">${t} (${arr.length})</div>`+arr.slice(0,8).map(x=>`<div class="item"><span class="pill">${t}</span> ${escape(typeof x==="string"?x:JSON.stringify(x)).slice(0,180)}</div>`).join("");};
+    h+=sec("query",d.query);h+=sec("engram",d.engram);h+=sec("patterns",d.patterns);
+    if(d.stats)h+=`<div class="sec">stats</div><div class="item">${escape(JSON.stringify(d.stats)).slice(0,200)}</div>`;
+    b.innerHTML=h||"— kosong —";
+  }catch{b.textContent="error";}
+}
+
+// ---- git tree ----
+async function loadGit(){
+  if(curProject==="default"){$("#gitPath").textContent="(default = pina-core)";}
+  else { const ps=await (await fetch("/api/projects")).json(); const p=ps.find(x=>x.id===curProject); $("#gitPath").textContent=p?p.path:""; }
+  const all=$("#gitAll").checked?"1":"0";
+  const r=await fetch(`/api/projects/${curProject}/gitlog?all=${all}`).then(x=>x.json()).catch(()=>({ok:false}));
+  if(!r.ok||!r.text){$("#gitLog").textContent=r.error||"(bukan git repo / error)";return;}
+  $("#gitLog").textContent=r.text;
+}
+$("#gitRefresh").addEventListener("click",loadGit);
+$("#gitAll").addEventListener("change",loadGit);
+// click a commit hash to restore
+$("#gitLog").addEventListener("click",async e=>{
+  const line=window.getSelection().toString().trim(); const m=line.match(/([0-9a-f]{7,40})/); if(!m)return;
+  const commit=m[1];
+  if(!confirm("Buat branch baru dari commit "+commit.slice(0,8)+"? (aman, WIP gak ilang)"))return;
+  const r=await fetch(`/api/projects/${curProject}/restore`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({commit})});
+  const j=await r.json().catch(()=>({}));
+  $("#gitRestoreMsg").innerHTML=j.ok?`<span class="ok">✓ branch <b>${escape(j.branch)}</b> dibuat</span>`:`<span class="warn">✗ ${escape(j.error||"gagal")}</span>`;
+  loadGit();
 });
 
-// Swarm control panel (goal + autonomous).
-const swarmPanel = document.createElement("div");
-swarmPanel.className = "panel";
-swarmPanel.id = "swarm";
-swarmPanel.innerHTML = `<h2>Swarm control</h2>
-  <div class="row"><span class="k">goal</span></div>
-  <input id="goalInput" class="inp" placeholder="set persistent goal…" />
-  <button class="btn" id="setGoal">Set goal</button>
-  <div class="row" style="margin-top:8px"><span class="k">autonomous</span>
-    <button class="btn" id="autoOn">On</button>
-    <button class="btn" id="autoOff">Off</button></div>
-  <div class="row" style="margin-top:8px"><span class="k">budget (turns)</span></div>
-  <input id="budgetInput" class="inp" placeholder="e.g. 10" />
-  <button class="btn" id="setBudget">Set budget</button>
-  <div class="sub" id="swarmStatus" style="margin-top:8px;color:var(--muted)">—</div>`;
-document.querySelector(".board").after(swarmPanel);
-
-// Chat panel: talk to Pina directly from the board UI (SSE streamed).
-const chatPanel = document.createElement("div");
-chatPanel.className = "panel";
-chatPanel.id = "chat";
-chatPanel.innerHTML = `<h2>💬 Chat with Pina</h2>
-  <div class="chatlog" id="chatLog"></div>
-  <input id="chatInput" class="chatinput" placeholder="tanya Pina… (Enter untuk kirim)" />
-  <button class="btn" id="chatSend">Kirim</button>
-  <button class="btn" id="chatClear">Clear</button>`;
-swarmPanel.after(chatPanel);
-
-// Memory panel: surface OMNI memory (distillations / engrams / patterns).
-const memPanel = document.createElement("div");
-memPanel.className = "panel";
-memPanel.id = "memory";
-memPanel.innerHTML = `<h2>🧠 Memory (OMNI)</h2>
-  <button class="btn" id="memRefresh">Refresh</button>
-  <div class="mem" id="memBody" style="margin-top:6px">— klik refresh —</div>`;
-chatPanel.after(memPanel);
-
-document.getElementById("setGoal").addEventListener("click", async () => {
-  const g = document.getElementById("goalInput").value.trim();
-  await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "goal", arg: g }) });
-  document.getElementById("swarmStatus").textContent = g ? `goal set: ${g}` : "goal cleared";
-  loadSwarm();
+// ---- settings ----
+async function loadSettings(){
+  const s=await (await fetch("/api/settings")).json();
+  $("#hbEnabled").checked=!!s.heartbeat?.enabled; $("#hbInterval").value=s.heartbeat?.intervalSec??30;
+  $("#tgEnabled").checked=!!s.gateway?.telegram?.enabled; $("#tgToken").value=s.gateway?.telegram?.token??""; $("#tgChat").value=s.gateway?.telegram?.chatId??"";
+  $("#cronList").value=JSON.stringify(s.cron??[],null,0);
+}
+$("#saveSettings").addEventListener("click",async()=>{
+  const s={heartbeat:{enabled:$("#hbEnabled").checked,intervalSec:Number($("#hbInterval").value)||30},
+    gateway:{telegram:{enabled:$("#tgEnabled").checked,token:$("#tgToken").value,chatId:$("#tgChat").value}},
+    cron:safeParse($("#cronList").value,[])};
+  const r=await fetch("/api/settings",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(s)});
+  $("#settingsMsg").textContent=r.ok?"saved ✓":"gagal";
 });
-document.getElementById("autoOn").addEventListener("click", async () => {
-  const b = document.getElementById("budgetInput").value.trim();
-  await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autonomous", arg: "on", budget: b ? Number(b) : 0 }) });
-  document.getElementById("swarmStatus").textContent = "autonomous ON" + (b ? ` (budget ${b})` : "");
-  loadSwarm();
-});
-document.getElementById("autoOff").addEventListener("click", async () => {
-  await fetch("/api/swarm", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "autonomous", arg: "off" }) });
-  document.getElementById("swarmStatus").textContent = "autonomous OFF";
-  loadSwarm();
-});
+function safeParse(t,fb){try{return JSON.parse(t);}catch{return fb;}}
 
-// Refresh swarm panel from live state.
-async function loadSwarm() {
-  try {
-    const d = await (await fetch("/api/swarm-state")).json();
-    if (!d.ok) return;
-    const st = d.state;
-    const el = document.getElementById("swarmStatus");
-    if (el) {
-      el.innerHTML = `goal: <b>${st.goal ? escape(st.goal) : "—"}</b><br>autonomous: <b>${st.autonomous ? "ON" : "OFF"}</b>` +
-        (st.budgetTurns ? ` (budget ${st.budgetTurns})` : "") + `<br>lessons: ${st.refinements}`;
-    }
-  } catch {}
-}
-setInterval(loadSwarm, 5000);
-loadSwarm();
+// ---- tabs ----
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  const v=t.dataset.tab;
+  $("#view-board").classList.toggle("hidden",v!=="board");
+  $("#view-git").classList.toggle("hidden",v!=="git");
+  $("#view-settings").classList.toggle("hidden",v!=="settings");
+  if(v==="git")loadGit(); if(v==="settings")loadSettings();
+}));
 
-// --- Chat: stream pina -p output via SSE ---
-const chatLog = document.getElementById("chatLog");
-const chatInput = document.getElementById("chatInput");
-function appendChat(text, who) {
-  const div = document.createElement("div");
-  if (who === "me") div.className = "me";
-  div.textContent = (who === "me" ? "› " : "") + text;
-  chatLog.appendChild(div);
-  chatLog.scrollTop = chatLog.scrollHeight;
-}
-async function sendChat() {
-  const msg = chatInput.value.trim();
-  if (!msg) return;
-  chatInput.value = "";
-  appendChat(msg, "me");
-  const log = document.createElement("div");
-  chatLog.appendChild(log);
-  try {
-    const resp = await fetch("/api/chat", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: msg }),
-    });
-    const reader = resp.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value);
-      const lines = buf.split("\n\n");
-      buf = lines.pop();
-      for (const ln of lines) {
-        if (ln.startsWith("data: ")) {
-          try { const j = JSON.parse(ln.slice(6)); if (j.t) log.textContent += j.t; } catch {}
-        }
-      }
-      chatLog.scrollTop = chatLog.scrollHeight;
-    }
-  } catch (e) {
-    log.textContent += "\n[error: " + e.message + "]";
-  }
-}
-document.getElementById("chatSend").addEventListener("click", sendChat);
-document.getElementById("chatClear").addEventListener("click", () => { chatLog.innerHTML = ""; });
-chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
-
-// --- Memory: fetch OMNI memory snapshot ---
-const memBody = document.getElementById("memBody");
-async function loadMemory() {
-  memBody.innerHTML = "memuat…";
-  try {
-    const d = await (await fetch("/api/memory")).json();
-    if (!d.ok) { memBody.textContent = "OMNI offline"; return; }
-    let html = "";
-    const sec = (t, items) => {
-      if (!items) return "";
-      const arr = Array.isArray(items) ? items : (items && typeof items === "object" ? [items] : []);
-      if (!arr.length) return `<div class="sec">${t}: —</div>`;
-      return `<div class="sec">${t} (${arr.length})</div>` + arr.slice(0, 8).map(x =>
-        `<div class="item"><span class="tag">${t}</span> ${escape(typeof x === "string" ? x : JSON.stringify(x)).slice(0, 180)}</div>`).join("");
-    };
-    html += sec("query", d.query);
-    html += sec("engram", d.engram);
-    html += sec("patterns", d.patterns);
-    if (d.stats) html += `<div class="sec">stats</div><div class="item">${escape(JSON.stringify(d.stats)).slice(0, 200)}</div>`;
-    memBody.innerHTML = html || "— kosong —";
-  } catch { memBody.textContent = "error"; }
-}
-document.getElementById("memRefresh").addEventListener("click", loadMemory);
-
+// ---- init ----
+buildChat(); buildMemory();
+loadProjects().then(()=>{ loadBoard(); loadGit(); });
+loadAgent(); loadSwarm(); loadMemory();
+setInterval(loadBoard,3000); setInterval(loadAgent,5000); setInterval(loadSwarm,5000);
+document.getElementById("chatSend").addEventListener("click",sendChat);
+document.getElementById("chatClear").addEventListener("click",()=>{$("#chatLog").innerHTML="";});
+document.getElementById("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat();});
 </script>
 </body>
 </html>

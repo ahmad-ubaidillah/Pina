@@ -186,6 +186,102 @@ async function gitRestore(path: string, commit: string): Promise<{ ok: boolean; 
 
 const env = () => ({ ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` });
 
+// Capture full stdout of a pina -p run (used by heartbeat / cron / telegram).
+async function spawnCapture(args: string[], cwd?: string): Promise<string> {
+  try {
+    const p = Bun.spawn([BIN, ...args], { stdout: "pipe", stderr: "pipe", stdin: "ignore", cwd, env: env() });
+    const text = (await new Response(p.stdout).text()) + (await new Response((p.stderr as any)).text());
+    await p.exited;
+    return text;
+  } catch (e: any) {
+    return "[spawn error: " + (e?.message ?? e) + "]";
+  }
+}
+
+function cronMatches(expr: string, d: Date): boolean {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length < 5) return false;
+  const [m, h, dom, mon, dow] = parts;
+  const match = (v: string, cur: number) => v === "*" || v.split(",").map(Number).includes(cur);
+  return match(m, d.getMinutes()) && match(h, d.getHours()) && match(dom, d.getDate()) && match(mon, d.getMonth() + 1) && match(dow, d.getDay());
+}
+
+// --- autonomous loops (read settings fresh each tick) ---
+let hbRunning = false;
+async function heartbeatTick() {
+  const s = loadSettings();
+  if (!s.heartbeat?.enabled || hbRunning) return;
+  hbRunning = true;
+  try {
+    let goal = "";
+    try { goal = JSON.parse(readFileSync(join(PINA, "swarm-state.json"), "utf8")).goal || ""; } catch {}
+    const prompt = goal
+      ? `Continue the persistent goal: ${goal}. Do ONE small, safe, verifiable step, then stop.`
+      : `Do ONE small, safe, verifiable improvement to the codebase, then stop.`;
+    await spawnCapture(["-p", prompt]);
+  } finally { hbRunning = false; }
+}
+
+let cronLast = 0;
+async function cronTick() {
+  const s = loadSettings();
+  const jobs = Array.isArray(s.cron) ? s.cron : [];
+  const now = Date.now();
+  if (now - cronLast < 55000) return; // at most once per minute
+  cronLast = now;
+  const d = new Date();
+  for (const j of jobs) {
+    if (j.at && cronMatches(j.at, d)) {
+      const prompt = j.action === "goal"
+        ? `Call set_goal with text '${String(j.arg ?? "").replace(/'/g, "")}'.`
+        : String(j.arg ?? j.action ?? "");
+      if (prompt) await spawnCapture(["-p", prompt]);
+    }
+  }
+}
+
+let tgOffset = 0;
+let tgRunning = false;
+async function tgPoll() {
+  const s = loadSettings();
+  const tg = s.gateway?.telegram;
+  if (!tg?.enabled || !tg.token || tgRunning) return;
+  tgRunning = true;
+  try {
+    const u = `https://api.telegram.org/bot${tg.token}/getUpdates?offset=${tgOffset}&timeout=15`;
+    const r = await fetch(u);
+    const j = await r.json().catch(() => ({}) as any);
+    if (j.ok && Array.isArray(j.result)) {
+      for (const upd of j.result) {
+        tgOffset = upd.update_id + 1;
+        const msg: string | undefined = upd.message?.text;
+        const chatId: string | number | undefined = upd.message?.chat?.id ?? tg.chatId;
+        if (msg && chatId) {
+          const out = await spawnCapture(["-p", msg]);
+          await fetch(`https://api.telegram.org/bot${tg.token}/sendMessage`, {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text: out.slice(0, 4000) }),
+          }).catch(() => {});
+          // best-effort photo: agent may emit MEDIA:/path or an absolute image path
+          const m = out.match(/MEDIA:\s*(\S+\.(png|jpe?g|webp))|(\/\S+\.(png|jpe?g|webp))/i);
+          const fp = m?.[1] ?? m?.[3];
+          if (fp && existsSync(fp)) {
+            await fetch(`https://api.telegram.org/bot${tg.token}/sendPhoto`, {
+              method: "POST", headers: { "content-type": "application/json" },
+              body: JSON.stringify({ chat_id: chatId, photo: fp }),
+            }).catch(() => {});
+          }
+        }
+      }
+    }
+  } catch { /* offline — skip */ } finally { tgRunning = false; }
+}
+
+// Run loops (safe no-ops until enabled in settings).
+setInterval(heartbeatTick, 5000);
+setInterval(cronTick, 30000);
+setInterval(tgPoll, 5000);
+
 const server = Bun.serve({
   port: 8787,
   hostname: "127.0.0.1",
@@ -371,6 +467,21 @@ const server = Bun.serve({
       const s = await req.json().catch(() => ({}));
       saveSettings(s);
       return json({ ok: true });
+    }
+    // Manual triggers (for verification / UI buttons). Loops also run automatically.
+    if (url.pathname === "/api/heartbeat" && req.method === "POST") {
+      const out = await spawnCapture(["-p", "Do ONE small, safe, verifiable improvement to the codebase, then stop."]);
+      return json({ ok: true, output: out.slice(0, 2000) });
+    }
+    if (url.pathname === "/api/telegram/test" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const token = String(b.token ?? "").trim();
+      if (!token) return json({ ok: false, error: "token required" }, 400);
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const j = await r.json();
+        return json({ ok: j.ok, username: j.result?.username ?? null, error: j.description ?? null });
+      } catch (e: any) { return json({ ok: false, error: e?.message ?? String(e) }); }
     }
 
     if (url.pathname === "/" || url.pathname === "/index.html") {

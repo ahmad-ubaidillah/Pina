@@ -105,6 +105,11 @@
   <textarea id="cronList" class="inp" rows="4" placeholder='[{"at":"0 9 * * *","action":"goal","arg":"ci daily"}]'></textarea>
   <button class="btn" id="saveSettings">Save</button>
   <span id="settingsMsg" style="margin-left:8px"></span>
+  <div style="margin-top:16px">
+    <button class="btn green" id="testHeartbeat">Test heartbeat (1 step)</button>
+    <button class="btn green" id="verifyToken">Verify Telegram token</button>
+    <span id="phase2Msg" style="margin-left:8px"></span>
+  </div>
 </div>
 
 <footer>Per-project chat • kanban tersimpan • git-tree + restore (branch baru) • settings web • auto-refresh 3s</footer>
@@ -276,6 +281,19 @@ $("#saveSettings").addEventListener("click",async()=>{
   $("#settingsMsg").textContent=r.ok?"saved ✓":"gagal";
 });
 function safeParse(t,fb){try{return JSON.parse(t);}catch{return fb;}}
+$("#testHeartbeat").addEventListener("click",async()=>{
+  $("#phase2Msg").textContent="running…";
+  const r=await fetch("/api/heartbeat",{method:"POST"});
+  const j=await r.json().catch(()=>({}));
+  $("#phase2Msg").textContent=j.ok?("✓ ran: "+escape((j.output||"").slice(0,80)+"…")):"✗ "+(j.error||"fail");
+});
+$("#verifyToken").addEventListener("click",async()=>{
+  const token=$("#tgToken").value.trim(); if(!token){$("#phase2Msg").textContent="token kosong";return;}
+  $("#phase2Msg").textContent="checking…";
+  const r=await fetch("/api/telegram/test",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token})});
+  const j=await r.json().catch(()=>({}));
+  $("#phase2Msg").textContent=j.ok?("✓ bot: @"+j.username):("✗ "+(j.error||"invalid"));
+});
 
 // ---- tabs ----
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{

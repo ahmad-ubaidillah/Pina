@@ -105,6 +105,7 @@
   <textarea id="cronList" class="inp" rows="4" placeholder='[{"at":"0 9 * * *","action":"goal","arg":"ci daily"}]'></textarea>
   <button class="btn" id="saveSettings">Save</button>
   <span id="settingsMsg" style="margin-left:8px"></span>
+  <div style="margin-top:10px"><button class="btn green sm" id="runCron">Run first cron job now</button> <span id="cronMsg"></span></div>
   <div style="margin-top:16px">
     <button class="btn green" id="testHeartbeat">Test heartbeat (1 step)</button>
     <button class="btn green" id="verifyToken">Verify Telegram token</button>
@@ -244,6 +245,33 @@ async function loadMemory(){
   }catch{b.textContent="error";}
 }
 
+// ---- delegate (parallel multi-worker) ----
+function buildDelegate(){
+  const mem=$("#memory");
+  const p=document.createElement("div"); p.className="panel"; p.id="delegate";
+  p.innerHTML=`<h2>🐝 Delegate (parallel)</h2>
+    <div class="sub">Tiap baris = 1 worker. Format: <code>role: prompt</code> (role opsional, salah satu dari 15 divisi).</div>
+    <textarea id="delInput" class="inp" rows="5" placeholder="fe: bikin komponen button&#10;be: bikin endpoint /users&#10;qa: test untuk button"></textarea>
+    <button class="btn green" id="delRun">Run parallel</button>
+    <div class="mem" id="delOut" style="margin-top:6px"></div>`;
+  mem.after(p);
+  $("#delRun").onclick=async()=>{
+    const raw=$("#delInput").value.trim(); if(!raw){$("#delOut").textContent="kosong";return;}
+    const tasks=raw.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
+      const m=l.match(/^(\w+):\s*(.*)$/);
+      if(m && ROLES.includes(m[1])) return {role:m[1], prompt:m[2]};
+      return {prompt:l};
+    });
+    $("#delOut").textContent="menjalankan "+tasks.length+" worker…";
+    const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({message:`Use the delegate_tasks tool with this list: ${JSON.stringify(tasks)}. Return the combined results.`,project:curProject})});
+    const reader=r.body.getReader(); const dec=new TextDecoder(); let buf=""; const out=$("#delOut");
+    while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value);const lines=buf.split("\n\n");buf=lines.pop();
+      for(const ln of lines){if(ln.startsWith("data: ")){try{const j=JSON.parse(ln.slice(6));if(j.t)out.textContent+=j.t;}catch{}}}}
+  };
+}
+const ROLES=["fe","be","qa","pm","ba","devops","cybersec","uiux","techwriter","data","ml","mobile","sre","growth","legal"];
+
 // ---- git tree ----
 async function loadGit(){
   if(curProject==="default"){$("#gitPath").textContent="(default = pina-core)";}
@@ -280,6 +308,12 @@ $("#saveSettings").addEventListener("click",async()=>{
   const r=await fetch("/api/settings",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(s)});
   $("#settingsMsg").textContent=r.ok?"saved ✓":"gagal";
 });
+$("#runCron").addEventListener("click",async()=>{
+  $("#cronMsg").textContent="running…";
+  const r=await fetch("/api/cron/run",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({index:0,project:curProject})});
+  const j=await r.json().catch(()=>({}));
+  $("#cronMsg").textContent=j.ok?("✓ launched (pid "+j.pid+")"):("✗ "+(j.error||"fail"));
+});
 function safeParse(t,fb){try{return JSON.parse(t);}catch{return fb;}}
 $("#testHeartbeat").addEventListener("click",async()=>{
   $("#phase2Msg").textContent="running…";
@@ -306,7 +340,7 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
 }));
 
 // ---- init ----
-buildChat(); buildMemory();
+buildChat(); buildMemory(); buildDelegate();
 loadProjects().then(()=>{ loadBoard(); loadGit(); });
 loadAgent(); loadSwarm(); loadMemory();
 setInterval(loadBoard,3000); setInterval(loadAgent,5000); setInterval(loadSwarm,5000);

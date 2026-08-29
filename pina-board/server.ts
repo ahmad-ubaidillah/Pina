@@ -483,6 +483,20 @@ const server = Bun.serve({
         return json({ ok: j.ok, username: j.result?.username ?? null, error: j.description ?? null });
       } catch (e: any) { return json({ ok: false, error: e?.message ?? String(e) }); }
     }
+    // Integrated cron: run a cron job's action immediately (manual trigger from UI).
+    if (url.pathname === "/api/cron/run" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const idx = Number(b.index ?? 0);
+      const s = loadSettings();
+      const job = Array.isArray(s.cron) ? s.cron[idx] : null;
+      if (!job) return json({ ok: false, error: "no such cron job" }, 400);
+      const prompt = job.action === "goal"
+        ? `Call set_goal with text '${String(job.arg ?? "").replace(/'/g, "")}'.`
+        : String(job.arg ?? job.action ?? "");
+      const cwd = getProjectPath(b.project) || undefined;
+      const child = Bun.spawn([BIN, "-p", prompt], { stdout: "ignore", stderr: "ignore", stdin: "ignore", cwd, env: env() });
+      return json({ ok: true, pid: child.pid, prompt });
+    }
 
     if (url.pathname === "/" || url.pathname === "/index.html") {
       return new Response(HTML, { headers: { "content-type": "text/html; charset=utf-8" } });

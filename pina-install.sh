@@ -97,10 +97,20 @@ else
   echo "  $PI_SETTINGS already references omni — skipped"
 fi
 
-echo ""
-echo "✓ Pina installed. (Pi Native Agent)"
-echo "  Run: pina --help"
-echo "  Board: pina-board  → http://127.0.0.1:8787"
-echo "  OMNI cleanup: pina-omni-clean"
-echo ""
-echo "  Ensure \$HOME/.local/bin and \$HOME/.bun/bin are on PATH."
+# 5. Skill Store: copy pina-skills/ into ~/.pina/pina-skills (agent reads from there)
+SKILLS_SRC="$ROOT/pina-skills"
+SKILLS_DST="$HOME/.pina/pina-skills"
+if [ -d "$SKILLS_SRC" ]; then
+  mkdir -p "$SKILLS_DST"
+  cp -r "$SKILLS_SRC/." "$SKILLS_DST/"
+  echo "  copied pina-skills -> $SKILLS_DST"
+fi
+
+# 6. Browser Actions: copy examples into ~/.pina/browser-actions (agent reads from there)
+BA_SRC="$ROOT/browser-actions"
+BA_DST="$HOME/.pina/browser-actions"
+if [ -d "$BA_SRC" ] && [ -f "$BA_SRC/fetch_page.js" ]; then
+  mkdir -p "$BA_DST"
+  cp -r "$BA_SRC/." "$BA_DST/"
+  echo "  copied browser-actions -> $BA_DST"
+fi

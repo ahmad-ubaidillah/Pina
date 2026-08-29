@@ -66,6 +66,7 @@
   <div class="tabs">
     <span class="tab active" data-tab="board">Board</span>
     <span class="tab" data-tab="git">Git</span>
+    <span class="tab" data-tab="skills">Skills</span>
     <span class="tab" data-tab="settings">Settings</span>
   </div>
 </header>
@@ -107,6 +108,11 @@
   </div>
   <div class="git" id="gitLog">pilih project…</div>
   <div id="gitRestoreMsg" style="margin-top:8px;font-size:12px"></div>
+</div>
+
+<div id="view-skills" class="view hidden" style="max-width:760px">
+  <h2 style="font-size:15px">Skill Store</h2>
+  <div id="skillsList" style="display:flex;flex-direction:column;gap:8px"></div>
 </div>
 
 <div id="view-settings" class="view hidden" style="max-width:640px">
@@ -236,8 +242,13 @@ $("#verifyToken").onclick=async()=>{const tok=$("#tgToken").value.trim();if(!tok
 function safeParse(t,fb){try{return JSON.parse(t);}catch{return fb;}}
 
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");
-  const v=t.dataset.tab;$("#view-board").classList.toggle("hidden",v!=="board");$("#view-git").classList.toggle("hidden",v!=="git");$("#view-settings").classList.toggle("hidden",v!=="settings");
-  if(v==="git")loadGit();if(v==="settings")loadSettings();});
+  const v=t.dataset.tab;$("#view-board").classList.toggle("hidden",v!=="board");$("#view-git").classList.toggle("hidden",v!=="git");$("#view-skills").classList.toggle("hidden",v!=="skills");$("#view-settings").classList.toggle("hidden",v!=="settings");
+  if(v==="git")loadGit();if(v==="settings")loadSettings();if(v==="skills")loadSkills();});
+
+async function loadSkills(){const el=$("#skillsList");el.innerHTML="memuat…";try{const d=await (await fetch("/api/skills")).json();if(!d.ok){el.textContent="err";return;}
+  el.innerHTML=d.skills.map(s=>`<div class="panel" style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div style="font-weight:600">${esc(s.name)} <span class="badge">${s.id}</span></div><div style="font-size:12px;color:var(--muted)">${esc(s.desc)} · ${(s.tags||[]).join(",")}</div></div><label class="btn sm ${s.enabled?"green":""}"><input type="checkbox" data-sk="${s.id}" ${s.enabled?"checked":""}/> ${s.enabled?"on":"off"}</label></div>`).join("");
+  el.querySelectorAll("input[data-sk]").forEach(cb=>cb.onchange=async()=>{const id=cb.dataset.sk;cb.parentElement.classList.toggle("green",cb.checked);cb.parentElement.lastChild.textContent=cb.checked?" on":" off";await fetch("/api/skills",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id,enabled:cb.checked})});});
+}catch{el.textContent="err";}}
 
 loadProjects().then(()=>{loadBoard();loadGit();});
 loadAgent();loadSwarm();loadMemory();

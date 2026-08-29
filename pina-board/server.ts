@@ -498,6 +498,36 @@ const server = Bun.serve({
       return json({ ok: true, pid: child.pid, prompt });
     }
 
+    // Skill Store: GET list (manifest + effective enabled), POST save enabled overrides.
+    if (url.pathname === "/api/skills" && req.method === "GET") {
+      const idx = join(ROOT, "pina-skills", "index.json");
+      const enabledFile = join(PINA, "skills-enabled.json");
+      let manifest: any[] = [];
+      try { manifest = JSON.parse(readFileSync(idx, "utf8")); } catch {}
+      let overrides: any = {};
+      try { overrides = JSON.parse(readFileSync(enabledFile, "utf8")); } catch {}
+      const list = manifest.map((s) => ({
+        id: s.id, name: s.name, desc: s.desc, tags: s.tags ?? [],
+        enabled: typeof overrides[s.id] === "boolean" ? overrides[s.id] : (s.defaultEnabled !== false),
+      }));
+      return json({ ok: true, skills: list });
+    }
+    if (url.pathname === "/api/skills" && req.method === "POST") {
+      const b = await req.json().catch(() => ({}));
+      const id = String(b.id ?? "").trim();
+      const enabled = !!b.enabled;
+      const idx = join(ROOT, "pina-skills", "index.json");
+      let manifest: any[] = [];
+      try { manifest = JSON.parse(readFileSync(idx, "utf8")); } catch {}
+      if (!manifest.find((s) => s.id === id)) return json({ ok: false, error: "unknown skill" }, 400);
+      const enabledFile = join(PINA, "skills-enabled.json");
+      let overrides: any = {};
+      try { overrides = JSON.parse(readFileSync(enabledFile, "utf8")); } catch {}
+      overrides[id] = enabled;
+      writeFileSync(enabledFile, JSON.stringify(overrides, null, 2));
+      return json({ ok: true, id, enabled });
+    }
+
     if (url.pathname === "/" || url.pathname === "/index.html") {
       return new Response(HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
     }

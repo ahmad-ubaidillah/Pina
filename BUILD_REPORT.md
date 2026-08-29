@@ -272,4 +272,62 @@ pina -p "set goal ..., set autonomous on"   # autonomous loop
 # atau via board UI: http://127.0.0.1:8787
 ```
 
+---
+
+## §11 SIZE / SPEED / WEIGHT IMPROVEMENTS (2026-08-29)
+
+Goal: Pina lebih kecil, ringan, cepat. Hasil kerja nyata:
+
+### B — Extension cache (done, verified)
+- Shrimp's legacy-pi-compat cache (`~/.shrimp/cache/legacy-pi-extension-cache.db`)
+  di-key oleh **hash source extension**. Edit plugin -> hash beda -> auto-reparse.
+  Gak perlu hapus cache manual tiap edit (cuma saat ganti file yang gak ke-detect, e.g.
+  `dist/index.js` vs `index.ts` — selalu edit `index.ts` yang di-point `pi.extensions`).
+- Impact: startup tetap cepat (cache serve), edit otomatis invalid.
+
+### H — run_experiment tool (ported, registered)
+- Plugin `@quintinshaw/swarm` dapat tool ke-6: `run_experiment`.
+- Pola di-port dari `davebcn87/pi-autoresearch` (TS, v1.6.2, "try->measure->keep/revert"):
+  - jalankan shell command, timing, parse `METRIC name=value` lines
+  - log keep/discard/crash + metric ke `~/.pina/experiments.json`
+  - auto-stop guards (consecutive failures) — versi shrink (~60 line, gak fork 3067-line framework)
+- Debug log konfirmasi: `[shrimp-swarm] loaded: ... run_experiment`.
+- Catatan: model kecil (mimo-v2.5) kadang gak pilih tool plugin di `-p` mode
+  (misroute ke "MCP not connected"). `spawn_worker`/`set_goal` terbukti jalan;
+  `run_experiment` registered tapi model-selection flaky — BUKAN bug kode.
+
+### G + A — Single binary (already standalone, minify skipped)
+- `dist/shrimp` (179MB) **sudah standalone executable** (Bun-compile, gak butuh node_modules
+  saat runtime). Ini artinya "single executable" goal SUDAH tercapai.
+- `bun build --compile --minify` langsung gagal: butuh virtual module
+  `omp-legacy-pi-modules` yang cuma di-generate oleh build chain project
+  (`bun scripts/build-binary.ts` -> `bundle-dist.ts`). Raw `bun build` gak punya plugin itu.
+- `build-binary.ts` dijalankan (rebuild sukses, exit 0, regenerate embedded assets),
+  tapi gak ada flag minify -> ukuran tetap 179MB.
+- Minify butuh patch `build-binary.ts` internal `bun build` call -> risky, gain kecil
+  (native blob onnxruntime dominasi size, bukan JS). **SKIP** — bukan low-hanging fruit.
+
+### F — node_modules dedupe (dropped)
+- `pina-core/node_modules` = 1.6GB tapi **DEV-only** (onnxruntime, huggingface, fastembed,
+  biome, lucide-react). Binary standalone gak butuh itu saat runtime.
+- Shippable artifact = cuma `dist/shrimp` (~179MB). Dedupe node_modules = wasted effort.
+
+### Tech-stack note (Node -> Bun/Deno?)
+- Core UDAH Bun-compiled executable. Pina-board UDAH pakai Bun (#!/usr/bin/env bun, zero-dep).
+- Deno gak terinstall + gak compatible `@types/bun`/ONNX/OpenTelemetry -> pindah Deno = rewrite besar.
+- **Kesimpulan: stay di Bun.** Gak perlu migrasi.
+
+### Yang beneran bikin Pina ringan (fakta):
+- Binary standalone 179MB (no node_modules at runtime)
+- Board UI: 1 file `server.ts` + `index.html`, zero-dep Bun, 44KB (lebih ringan dari pi-web Next.js)
+- TIDAK pakai pi-web (Next.js+React 6MB repo, butuh build) — board kita sendiri lebih ringan
+- Plugin swarm: add-on ringan (~8KB TS), no rebuild core
+
+### Cara jalanin
+```
+pina -p "use spawn_worker to ..."          # manual swarm
+pina -p "set goal ..., set autonomous on"   # autonomous loop
+# board: pina-board  -> http://127.0.0.1:8787
+```
+
 

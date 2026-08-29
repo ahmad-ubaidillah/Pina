@@ -1,149 +1,142 @@
-# Pina 🦐
+# 🍍 Pina — Pi Native Agent
 
-> Small pina, big swarm.
-> Tiny pi-based autonomous coding agent — kecil, cepat, ringan, no Docker, no GitHub dependency.
-
-Pina = **Pina** (udang/krill: kecil, lincah, bergerombol/swarm) + **Pi** (base agent-nya).
-Dia agent otonom kayak krill/claw (Claude Code) tapi di atas `pi` — ringan, cepat, dan jalan tanpa Docker.
+> Coding agent yang **lebih kecil, lebih ringan, lebih cepat** + guardrail + pipeline Kanban multi-agent.
+> Fork dari [OMP / oh-my-pi](https://github.com/oh-my-pi) yang dilanjutkan dari Hermes, dengan teknik hemat-token di-port sebagai extension, [mcp-shrimp-task-manager](https://github.com/0xshellming/mcp-shrimp-task-manager) dicolok sebagai plugin MCP, dan **OMNI** dibundle sebagai token-saver.
 
 ---
 
-## 1. Apa itu Pina?
+## Kenapa Pina?
 
-Pina adalah **coding agent otonom** yang dibangun di atas **OMP (oh-my-pi)** —
-fork dari Pi coding agent. Filosofinya: agent kecil yang bisa nyuruh banyak sub-agent
-(swarm/krill) buat kerjaan besar, tapi sendiri tetap ringan dan tanpa beban infra.
+- **Hemat token** — OMNI (Apache 2.0) dibundle *di dalam* Pina, jadi gak perlu `omni init --pi`. Cross-turn ledger memotong konteks berulang ("folded 99%" terbukti di sesi nyata).
+- **Guardrail** — task manager + kanban states (TODO → RESEARCHING → PLANNING → WORKING → EVALUATING → DONE) + undo/transition log.
+- **Multi-agent** — swarm plugin bawaan: spawn worker paralel, autonomous loop, goal-driven.
+- **Visual Kanban** — board UI ringan (1 file `server.ts` + `index.html`, zero-dep Bun, 44KB). Lebih ringan dari pi-web (Next.js + React).
+- **Single binary** — core udah standalone executable (Bun-compile). Gak butuh `node_modules` saat runtime.
 
-Posisi di spektrum:
+---
+
+## Struktur
+
 ```
-Claude Code (claw) ≈ OpenCode ≈ Pina  → coding agent otonom
-                                      ▲
-                          (Pina + Kanban + 5-agent pipeline + memory)
-Hermes Agent → super-agent (coding + browser + cron + messaging + vision + computer_use)
+pina/
+├── pina-core/            # fork OMP (nested git, di-ignore dari repo ini)
+├── pina-board/           # 🍍 Kanban board UI (Bun + HTML, zero-dep)
+│   ├── server.ts
+│   ├── index.html
+│   ├── pina-board.sh
+│   └── SWARM.md
+├── .pina/                # config dir (symlink ~/.omp) — swarm-state.json, experiments.json
+├── pina-install.sh       # installer (bikin symlink pina + back-compat shrimp)
+├── BUILD_REPORT.md       # laporan build lengkap + §11 improvements
+├── AGENTS.md
+└── README.md
 ```
-Pina = OpenCode yang sudah dikasih otak Kanban + memory + research + evaluate.
-Workflow-nya 60% mirip Hermes, tapi tool-surface-nya masih coding-agent (bukan super-agent).
-Naik ke level Hermes via MCP ada di fase 2 (lihat ARCHITECTURE.md).
+
+Plugin swarm: `~/.omp/plugins/node_modules/@quintinshaw/swarm/index.ts`
+(tools: `spawn_worker`, `list_workers`, `set_goal`, `set_autonomous`, `refine`, `run_experiment`)
 
 ---
 
-## 2. Bedah: Cheasee-Pi vs OMP (dari kode asli)
-
-Keduanya di-clone ke `~/agents/` untuk riset.
-
-### Cheasee-Pi (`~/agents/cheasee-pi`)
-- Binary **Go** (`go.mod`, `cmd/cheasee-pi/`) yang membungkus pi.
-- **HARDCODE dependency eksternal:**
-  - **Docker**: `cmd/cheasee-pi/containers.go` + `embedded/docker/Dockerfile` (Debian 12-slim).
-    `cheasee-pi start` = docker compose up → exec pi di container.
-  - **GitHub OAuth** device-flow login (`github.go`, `cli/oauth`).
-  - **GitHub Project v2 board** sebagai Kanban (`supervisor` extension: fetch issue,
-    pindah card antar kolom, post comment, bikin PR).
-- Punya 17 extension TS (caveman, ponytail, supervisor, agent-harness, context-info,
-  lsp-auditor, ripgrep, structural-analyzer, ask-user, dll) import
-  `@earendil-works/pi-coding-agent`.
-- `APPEND_SYSTEM.md` = global instructions (tool-routing matrix, prohibited ops, execution protocols).
-
-### OMP / oh-my-pi (`~/agents/omp-base`)
-- Fork pi sendiri (**Bun/TypeScript**), ~240MB.
-- **SUDAH punya pengganti Docker & GitHub bawaan:**
-  - `crates/pi-iso` = **isolasi native** (btrfs snapshot Linux, APFS clonefile macOS, overlayfs)
-    — sandbox tanpa container daemon.
-  - `packages/mnemopi` = **memory** bawaan.
-  - `--plan` = **plan mode** bawaan.
-  - subagent / job-manager bawaan.
-  - hashline edits bawaan.
-- Extension API SAMA (`api.registerTool`, `pi.on`) → extension Cheasee bisa diport 1:1
-  (ganti import ke `@oh-my-pi/pi-coding-agent`).
-
-**Kesimpulan:** Cheasee bagus tapi bergantung Docker + GitHub. Untuk "no Docker, no GitHub"
-kita pakai OMP sebagai base, lalu tambah capability dari pi.dev (lebih terawat dari
-port manual Cheasee).
-
----
-
-## 3. Docker & GitHub → diganti apa?
-
-| Dependency Cheasee | Pengganti di Pina |
-|---|---|
-| Docker (container) | `crates/pi-iso` (OMP native) atau `bwrap` (bubblewrap, lihat `@trim21/personal-pi-extensions`). No daemon. |
-| GitHub OAuth login | API key lokal (OMP support 60+ provider via key/env). |
-| GitHub Project (Kanban) | Board lokal (SQLite/markdown) atau package `pi-task` / `pi-goal-list-loop-audit` dari pi.dev. |
-| Git worktree sandbox | `pi-dynamic-workflows` (git-worktree isolation bawaan) atau `git worktree` native. |
-
-Dependency tunggal yang dilepas: **Docker + GitHub**. Sisanya (git, ripgrep, tsc, LSP)
-adalah tool lokal standar — tidak masalah.
-
----
-
-## 4. Quick start (rencana, belum dieksekusi)
+## Install
 
 ```bash
-# 1. Fork/clone OMP sebagai base
-git clone https://github.com/can1357/oh-my-pi ~/Documents/pina-ai/pina-core
-cd ~/Documents/pina-ai/pina-core
-bun install
+# 1. clone core (OMP fork) ke ~/Documents/pina/pina-core  (lihat pina-install.sh)
+# 2. symlink binary pina (back-compat: shrimp tetap jalan)
+bash pina-install.sh
 
-# 2. Install extension pi.dev (lihat STACK.md)
-pi install npm:@mjasnikovs/pi-task
-pi install npm:@quintinshaw/pi-dynamic-workflows
-pi install npm:pi-hermes-memory
-pi install npm:pi-web-access
-pi install npm:context-mode
-pi install npm:@gotgenes/pi-permission-system
-pi install npm:cc-safety-net
+# 3. pastikan bun ada di PATH
+export PATH="$HOME/.bun/bin:$PATH"
+```
 
-# 3. Tulis adapter board lokal (SQLite) yg sambungin pi-task ke lifecycle
-# 4. Build + smoke-test
+Binary:
+- `pina`  → coding agent (Pi Native Agent)
+- `pina-board` → jalanin Kanban UI di http://127.0.0.1:8787
+- `pina-omni-clean` → bersihin cache OMNI
+
+---
+
+## Cara pakai
+
+### Manual / one-shot
+```bash
+pina -p "tulis fungsi quicksort di sort.ts"
+```
+
+### Swarm — spawn worker paralel
+```bash
+pina -p "use spawn_worker to build the login form"
+pina -p "use spawn_worker to build the signup form"
+```
+
+### Autonomous loop
+```bash
+pina -p "set goal to 'ship the auth module'"
+pina -p "set autonomous on"
+# Pina akan spawn worker paralel sampai goal kelar, lalu clear goal
+```
+
+### Board UI (Kanban + live OMNI + Launch + Spawn + Undo)
+```bash
+pina-board
+# buka http://127.0.0.1:8787
+```
+Fitur board:
+- 6-state kanban (drag/update via API)
+- **Live OMNI** — lihat session status + token savings real-time
+- **Launch Agent** — kirim prompt ke agent dari UI
+- **Spawn worker** — tombol per card → swarm
+- **Undo** — rollback transisi terakhir
+- **Swarm panel** — set goal / toggle autonomous / run refine
+
+---
+
+## Refine / Self-improve
+
+`refine` tool mencerna OMNI `engram` (subtask selesai) + `patterns` (error berulang) jadi lesson lokal di `~/.pina/swarm-state.json`.
+
+`run_experiment` tool (pola dari `davebcn87/pi-autoresearch`):
+```bash
+pina -p "use run_experiment to run 'npm test' and capture METRIC passed=N"
+# hasil: keep/discard + metric tersimpan di ~/.pina/experiments.json
 ```
 
 ---
 
-## 5. Struktur repo ini
+## Tech stack
 
-```
-~/Documents/pina-ai/
-├── README.md              # ini
-├── ARCHITECTURE.md        # desain lengkap + fase 2 (MCP)
-├── STACK.md               # 12-15 package pi.dev final + alasan pilih
-├── CRAWL_REPORT.md        # metodologi crawl + 14 kategori
-├── data/
-│   ├── pi_packages.json          # 7665 raw hasil crawl
-│   ├── pi_packages_clean.json    # 5373 unik (bersih)
-│   ├── pi_packages_by_cat.json   # 14 kategori, top-25 tiap kategori
-│   ├── SUMMARY_FOR_TG.md         # ringkasan yg dikirim ke Telegram
-│   ├── send_tg.sh                # script kirim ke TG (token dari ~/aeon/.env)
-│   ├── crawl_pi_packages.py      # crawler
-│   └── analyze_packages.py       # klasifikasi kategori
-├── research/
-│   ├── GH_ALTERNATIVES.md        # 8 repo GitHub ref
-│   ├── GH_BROAD.md               # 233 repo dari 26 query GitHub search
-│   ├── GH_SHRIMP.md              # 3 repo bernama "pina" (mcp-pina-task-manager, PinaCrab, pina-oracle)
-│   ├── GH_SHRIMP_NAMES.md        # 208 repo dari crawl nama pina/krill/crab (krillclaw, crabfleet, crabml, CrabTrap, dll)
-│   ├── crawl_pina_names.py     # crawler nama-based
-│   ├── fetch_repos.sh            # crawler 8 repo
-│   ├── extract_readmes.py        # extractor README 8 repo
-│   ├── broad_search.py           # crawler 26 query
-│   ├── fetch_pina.sh           # crawler 3 pina-repo
-│   ├── extract_pina.py         # extractor README 3 pina-repo
-│   ├── gh_alternatives/          # JSON mentah 8 repo + _combined.json
-│   ├── gh_pina/                # JSON mentah 3 pina-repo + _combined.json
-│   └── gh_broad.json             # 233 repo mentah
-└── (data/ sudah ada di atas)
-```
+- **Bun** (TypeScript) — core udah Bun-compiled standalone. Board UI juga Bun, zero-dep.
+- **OMNI** (Apache 2.0) — token-saver, dibundle di dalam Pina.
+- **mcp-shrimp-task-manager** — guardrail / task manager (plugin MCP).
+- **@quintinshaw/swarm** — plugin swarm (runtime, gak rebuild core).
+- **@quintinshaw/pi-dynamic-workflows** — engine swarm (WorkflowAgent).
+
+Tidak dipakai: pi-web (Next.js, terlalu berat), RustClaw/prime-agent sebagai core (cuma dipelajari polanya).
 
 ---
 
-## 6. Status
+## Improvements (2026-08-29) — lihat BUILD_REPORT §11
 
-- [x] Riset Cheasee-Pi vs OMP (bedah kode)
-- [x] Crawl pi.dev/packages (5373 package, 14 kategori)
-- [x] Keputusan stack (base OMP + package pi.dev)
-- [x] Dokumentasi + pindah hasil crawl ke sini
-- [x] Tambah stack anti-slop + UI/UX (`@bacnh85/pi-ux`, `@blackbelt-technology/anti-slop-frontend`, dll)
-- [x] Crawl GitHub pina/krill/crab (208 repo) + 3 pina-named repo
-- [x] Tulis DESIGN.md (kontrak anti-slop UI/UX) + AGENTS.md (instruksi operasional agent)
-- [ ] BUILD: branch `ahmad-agent`, install package, adapter board, build+smoke-test
-- [ ] ARSITEKTUR fase 2: MCP tools (browser/cron/messaging) → level Hermes
+| Item | Status | Catatan |
+|------|--------|---------|
+| B — Extension cache hash-keyed | ✅ | auto-invalid saat edit, startup tetap cepat |
+| H — run_experiment tool | ✅ | port pola pi-autoresearch, ~60 line |
+| G — Single binary | ✅ | udah standalone (179MB, no node_modules at runtime) |
+| A — Minify | ⏭️ | butuh patch build-chain, gain kecil (native blob dominan) |
+| F — node_modules dedupe | ❌ | dev-only, gak di-shipping |
+| Tech-stack migrate Node→Deno | ❌ | udah Bun, Deno gak compatible |
 
-Lihat `STACK.md` untuk daftar package final, `ARCHITECTURE.md` untuk desain.
+---
+
+## Rujukan (dipelajari, tidak di-fork)
+
+- `agegr/pi-web` — web UI session (kita bikin board sendiri yang lebih ringan)
+- `davebcn87/pi-autoresearch` — autonomous experiment loop (pola `run_experiment`)
+- `prime-agent` — RLM + Continual Harness (capai via pi-dynamic-workflows)
+- `RustyClaw` — swarm + security (port pola, gak fork)
+
+---
+
+## License
+
+Rujukan utama: **OMP / oh-my-pi** + **Cheasee-Pi**. OMNI (token-saver) berlisensi **Apache 2.0**.
+Config mesin user **tidak** dimasukkan ke repo ini (local-only).

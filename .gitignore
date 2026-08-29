@@ -1,6 +1,7 @@
-# Shrimp-ai local repo — tracks docs, plugin, board UI, installer only.
-# The forked core (shrimp-ai-core) is its own nested git repo and is ignored here.
+# Pina local repo — tracks docs, plugin, board UI, installer only.
+# The forked core (pina-core) is its own nested git repo and is ignored here.
 
+pina-core/
 shrimp-ai-core/
 node_modules/
 board.sqlite

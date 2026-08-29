@@ -55,6 +55,21 @@ mkdir -p "$HOME/.pina/pina-skills" "$HOME/.pina/browser-actions"
 cp -r "$DIST/pina-skills/." "$HOME/.pina/pina-skills/" 2>/dev/null || true
 cp -r "$DIST/browser-actions/." "$HOME/.pina/browser-actions/" 2>/dev/null || true
 
+# plugins: swarm + pi-dynamic-workflows (loaded via --plugin-dir)
+mkdir -p "$HOME/.pina/plugins/node_modules/@quintinshaw"
+cp -r "$DIST/plugins/@quintinshaw/swarm" "$HOME/.pina/plugins/node_modules/@quintinshaw/swarm" 2>/dev/null || true
+cp -r "$DIST/plugins/@quintinshaw/pi-dynamic-workflows" "$HOME/.pina/plugins/node_modules/@quintinshaw/pi-dynamic-workflows" 2>/dev/null || true
+# node_modules hoist for plugin deps (acorn, typebox, etc.)
+[ -d "$DIST/plugins/node_modules" ] && cp -rn "$DIST/plugins/node_modules/." "$HOME/.pina/plugins/node_modules/" 2>/dev/null || true
+
+# pina wrapper: auto-inject --plugin-dir so plugins load without whole OMP
+cat > "$BIN/pina" <<WRAP
+#!/usr/bin/env bash
+exec "$DIST/bin/pina" --plugin-dir "$HOME/.pina/plugins" "\$@"
+WRAP
+chmod +x "$BIN/pina"
+ln -sf "$BIN/pina" "$BIN/shrimp" 2>/dev/null || true
+
 echo ""
 echo "✓ Pina installed."
 echo "  Run: pina --help"

@@ -1,5 +1,6 @@
 [
   { "id": "web-scrape", "name": "Web Scrape", "desc": "Extract clean article text from any URL via obscura headless browser (bsk for login).", "tags": ["browser"], "backend": "obscura", "defaultEnabled": true },
+  { "id": "crawl", "name": "Web Crawl", "desc": "Crawl / scrape / map / search the web via spider-rs (bundled, MIT). mode: crawl | scrape | map | search.", "tags": ["browser", "research"], "backend": "spider", "defaultEnabled": true },
   { "id": "pr-review", "name": "PR Review", "desc": "Review a GitHub PR diff for bugs, security, and quality using CyberSec/QA roles.", "tags": ["dev", "security"], "backend": "agent", "defaultEnabled": true },
   { "id": "issue-triage", "name": "Issue Triage", "desc": "Classify, label, and draft a response for a GitHub issue.", "tags": ["dev"], "backend": "agent", "defaultEnabled": true },
   { "id": "changelog-gen", "name": "Changelog Generator", "desc": "Generate a changelog from git log since the last tag.", "tags": ["dev"], "backend": "shell", "defaultEnabled": true },

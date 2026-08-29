@@ -68,10 +68,14 @@ if [ ! -x "$OBSCURA_BIN" ]; then
     fi
   fi
 fi
-# symlink obscura if present
-if [ -x "$OBSCURA_BIN" ]; then
-  ln -sf "$OBSCURA_BIN" "$BIN/obscura"
-  echo "  linked obscura -> $BIN"
+# 2c. crawl backend: spider-rs (Rust CLI, MIT) — symlink if present, else offer cargo install
+SPIDER_BIN="$CORE/bin/spider"
+if [ -x "$SPIDER_BIN" ]; then
+  ln -sf "$SPIDER_BIN" "$BIN/spider"
+  echo "  linked spider -> $BIN"
+else
+  echo "  ! spider-rs binary not found in repo (pina-core/bin/spider)."
+  echo "    To enable crawl: 'cargo install spider_cli' then re-run, or it stays absent (crawl tool falls back to web_search)."
 fi
 
 # 3. launchers

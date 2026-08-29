@@ -30,11 +30,13 @@ git apply ../patches/tui-rebrand.patch ../patches/build-minify.patch ../patches/
 - `src/modes/theme/dark.json`: `accent` `#febc38` (amber) → `#3fb950` (pine green).
 
 ### `division-agents.patch`
-- `src/prompts/agents/{fe,be,qa,pm,ba,devops,cybersec}.md`: 7 per-divisi skill agents
-  (Frontend, Backend, QA, PM, BA, DevOps, CyberSec) with role-specialized system prompts.
-- `src/task/agents.ts`: registers the 7 agents into the bundled agent set (appears in `/agents` hub).
+- `src/prompts/agents/{fe,be,qa,pm,ba,devops,cybersec,uiux,techwriter,data,ml,mobile,sre,growth,legal}.md`: 15 per-divisi skill agents
+  (Frontend, Backend, QA, PM, BA, DevOps, CyberSec, UI/UX, Tech Writer, Data, ML, Mobile, SRE, Growth, Legal)
+  with role-specialized system prompts.
+- `src/task/agents.ts`: registers the 15 agents into the bundled agent set (appears in `/agents` hub).
 - Also: the swarm plugin (`@quintinshaw/swarm`) `spawn_worker` accepts a `role` argument
-  (`fe|be|qa|pm|ba|devops|cybersec`) that injects the matching role prompt into the worker.
+  (`fe|be|qa|pm|ba|devops|cybersec|uiux|techwriter|data|ml|mobile|sre|growth|legal`) that injects
+  the matching role prompt into the worker.
 
 ### `autoresearch-always-on.patch`
 - `src/autoresearch/index.ts`: `run_experiment` (and the other experiment tools) are now always

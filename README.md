@@ -88,46 +88,32 @@ skill store.
 
 ## Web stack
 
-Pina ships a lightweight, local-first web layer (no third-party crawl service):
+Pina ships a lightweight, local-first web layer (no third-party crawl service). You
+**don't pick a backend** — just tell Pina what you want and it routes automatically.
 
-| Need | Tool | License |
-|------|------|--------|
-| Headless browser | `obscura` | Apache-2.0 |
-| Real logged-in browser | BrowserSkill (`bsk`) | — (optional) |
-| Crawl / scrape / map | `spider-rs` (`spider`) | MIT |
-| Search | native `web_search` | — |
-| Reusable scripts | Browser Actions | — |
+Use the **`web`** tool (or just describe it in chat):
 
-Available tools (via the swarm plugin):
-
-- **`web_search`** — query the web (native provider).
-- **`browser_action`** — `action: fetch_url | script`, `backend: obscura | bsk | node`.
-  - `fetch_url` → `obscura fetch <url>` (JS-rendered pages).
-  - `script` → run a reusable `.js` Browser Action from `~/.pina/browser-actions`
-    (Halo-style: the AI decides *what/when*, the script owns *how*).
-- **`crawl`** — `mode: scrape | crawl | map | search`.
-  - `scrape` → `spider -u <url> scrape` (markdown).
-  - `crawl` → `spider -u <url> crawl` (follow links).
-  - `map` → list discovered URLs.
-  - `search` → falls back to `web_search` (spider CLI has no local search).
-
-### Browser Actions
-Put a `.js` file in `~/.pina/browser-actions/`. The script exports an async function:
-
-```js
-// ~/.pina/browser-actions/fetch_page.js
-module.exports = async (params, ctx) => {
-  const url = String(params?.url ?? "").trim();
-  const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (Pina-Agent)" } });
-  const html = await r.text();
-  return { success: true, title: (html.match(/<title>([^<]*)<\/title>/i) || [])[1] };
-};
-```
-
-Invoke it:
 ```bash
-pina -p "use browser_action action=script script=fetch_page params={'url':'https://example.com'}"
+pina -p "isi form login di example.com"
+pina -p "riset AI agent tools di GitHub"
+pina -p "buka https://example.com dan pelajari"
 ```
+
+Routing (automatic):
+
+| You say… | Pina uses | Why |
+|----------|-----------|-----|
+| "isi form", "login", "klik di chrome" | **BrowserSkill** (real logged-in browser) | needs auth / DOM clicks |
+| "riset", "crawl", "semua halaman di <site>" | **spider-rs** (crawler) | many pages / site-wide |
+| "buka", "pelajari", "baca <url>" | **obscura** (headless fetch) | single page |
+| anything else | native **web_search** | lookup |
+
+Under the hood: `obscura` (Apache-2.0) headless browser, `spider-rs` (MIT) crawler,
+native `web_search`, and reusable **Browser Actions** (`~/.pina/browser-actions/*.js`).
+No Firecrawl, no cloud.
+
+> BrowserSkill (`bsk`) is optional — install it only if you need to drive your real,
+> logged-in Chrome. Without it, form/login tasks fall back to obscura.
 
 ---
 

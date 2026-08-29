@@ -17,7 +17,7 @@ git apply ../patches/build-minify.patch     # full minify in the binary build
 Or apply both at once:
 
 ```bash
-git apply ../patches/tui-rebrand.patch ../patches/build-minify.patch
+git apply ../patches/tui-rebrand.patch ../patches/build-minify.patch ../patches/autoresearch-always-on.patch ../patches/division-agents.patch
 ```
 
 ## What each patch does
@@ -29,13 +29,19 @@ git apply ../patches/tui-rebrand.patch ../patches/build-minify.patch
   plus a green 256-color fallback ramp.
 - `src/modes/theme/dark.json`: `accent` `#febc38` (amber) → `#3fb950` (pine green).
 
-### `build-minify.patch`
-- `scripts/compile-binary.ts`: `minify: { identifiers, keepNames }` → `minify: true` (full).
-- `scripts/build-binary.ts`: passes `minifyWhitespace: true`.
-- Effect: binary ~179 MB → ~167 MB (≈6.5% smaller).
+### `division-agents.patch`
+- `src/prompts/agents/{fe,be,qa,pm,ba,devops,cybersec}.md`: 7 per-divisi skill agents
+  (Frontend, Backend, QA, PM, BA, DevOps, CyberSec) with role-specialized system prompts.
+- `src/task/agents.ts`: registers the 7 agents into the bundled agent set (appears in `/agents` hub).
+- Also: the swarm plugin (`@quintinshaw/swarm`) `spawn_worker` accepts a `role` argument
+  (`fe|be|qa|pm|ba|devops|cybersec`) that injects the matching role prompt into the worker.
+
+### `autoresearch-always-on.patch`
+- `src/autoresearch/index.ts`: `run_experiment` (and the other experiment tools) are now always
+  in the active tool set, so they are callable in `-p`/pipe mode without toggling autoresearch first.
 
 ## Note on `run_experiment`
 Pina relies on OMP's **native** `autoresearch` extension for `run_experiment`
-(`packages/coding-agent/src/autoresearch/`). It arms when autoresearch mode is on
-(`/autoresearch <goal>`); use it in interactive mode or with a capable model.
-No plugin-side `run_experiment` is shipped (it collided with the core tool).
+(`packages/coding-agent/src/autoresearch/`). With `autoresearch-always-on.patch` it is
+exposed by default (no `/autoresearch` toggle needed). The swarm plugin does NOT ship its own
+`run_experiment` (it collided with the core tool).

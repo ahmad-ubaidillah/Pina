@@ -44,6 +44,36 @@ ln -sf "$CORE/packages/coding-agent/dist/shrimp" "$BIN/shrimp"
 ln -sf "$CORE/bin/omni" "$BIN/omni"
 echo "  linked pina (+ shrimp back-compat) + omni -> $BIN"
 
+# 2b. web stack: obscura (headless browser for agents) — download prebuilt per-OS if missing
+OBSCURA_DIR="$CORE/bin/obscura"
+OBSCURA_BIN="$OBSCURA_DIR/obscura"
+if [ ! -x "$OBSCURA_BIN" ]; then
+  OS="$(uname -s)"; ARCH="$(uname -m)"
+  case "$OS" in
+    Linux)   PKG="obscura-${ARCH}-linux.tar.gz" ;;
+    Darwin)  PKG="obscura-${ARCH}-macos.tar.gz" ;;
+    *)       echo "  ! obscura: unsupported OS ($OS) — skip (browser_action will fall back to fetch)" ;;
+  esac
+  if [ -n "$PKG" ]; then
+    VER="v0.2.1"
+    URL="https://github.com/h4ckf0r0day/obscura/releases/download/$VER/$PKG"
+    echo "  downloading obscura $VER ($PKG)…"
+    mkdir -p "$OBSCURA_DIR"
+    if curl -fsSL -o /tmp/obscura.tar.gz "$URL" 2>/dev/null; then
+      tar xzf /tmp/obscura.tar.gz -C "$OBSCURA_DIR" && chmod +x "$OBSCURA_DIR/obscura" "$OBSCURA_DIR/obscura-worker" 2>/dev/null
+      rm -f /tmp/obscura.tar.gz
+      echo "  obscura installed -> $OBSCURA_DIR"
+    else
+      echo "  ! obscura download failed — browser_action falls back to fetch"
+    fi
+  fi
+fi
+# symlink obscura if present
+if [ -x "$OBSCURA_BIN" ]; then
+  ln -sf "$OBSCURA_BIN" "$BIN/obscura"
+  echo "  linked obscura -> $BIN"
+fi
+
 # 3. launchers
 ln -sf "$ROOT/pina-board/pina-board.sh" "$BIN/pina-board"
 ln -sf "$ROOT/pina-board/shrimp-board.sh" "$BIN/shrimp-board"

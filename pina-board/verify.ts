@@ -14,7 +14,7 @@ console.log("BOARD JSON OK:", typeof b.columns === "object");
 
 // 2) html
 const html = await fetch(base + "/").then((r) => r.text());
-console.log("HTML OK:", html.includes("Shrimp Kanban") && html.includes("/api/board"));
+console.log("HTML OK:", html.includes("Pina") && html.includes("/api/board"));
 
 // 3) move persistence (#2 -> WORKING)
 await fetch(base + "/api/move", {

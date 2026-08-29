@@ -16,8 +16,11 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Create required dirs
-        run: mkdir -p ~/Documents/pina ~/shrimp-ai
+      - name: Symlink repo into expected homedir paths
+        run: |
+          mkdir -p ~/Documents
+          ln -sfn $GITHUB_WORKSPACE ~/Documents/pina
+          mkdir -p ~/shrimp-ai
 
       - name: Board smoke test
         run: bun pina-board/verify.ts

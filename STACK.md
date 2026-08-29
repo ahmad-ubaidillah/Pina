@@ -1,13 +1,13 @@
-# Shrimp-ai — Stack (package pi.dev final)
+# Pina — Stack (package pi.dev final)
 
 > 12 package inti dari crawl pi.dev/packages (5373 package, diklasifikasi 14 kategori).
 > Dipilih untuk kriteria: kecil, ringan, autonomous, no Docker, no GitHub.
 
-## Task engine (rekomendasi — includes shrimp-named repo)
+## Task engine (rekomendasi — includes pina-named repo)
 
 | # | Package / Repo | Sumber | Fungsi | Alasan |
 |---|---|---|---|---|
-| 1 | `mcp-shrimp-task-manager` | GitHub cjo4m06 (2.1k⭐) | MCP task tool: chain-of-thought + reflection + dependency DAG + iterative refinement + cross-session context | **PALING cocok buat Kanban Shrimp-ai.** Dipasang sbg MCP server, dipanggil OMP via pi-mcp-adapter. No Docker/no GitHub. |
+| 1 | `mcp-pina-task-manager` | GitHub cjo4m06 (2.1k⭐) | MCP task tool: chain-of-thought + reflection + dependency DAG + iterative refinement + cross-session context | **PALING cocok buat Kanban Pina.** Dipasang sbg MCP server, dipanggil OMP via pi-mcp-adapter. No Docker/no GitHub. |
 | 2 | `@mjasnikovs/pi-task` | pi.dev | Motor task lifecycle deterministik (verify/enforce gates) | Fallback/determanistik kalau butuh crash-safe pipeline. |
 | 3 | `pi-goal-list-loop-audit` | pi.dev | Auditor loop: re-verify tiap completion dgn raw evidence | Tahap "evaluate/done" otonom. |
 | 3 | `@quintinshaw/pi-dynamic-workflows` | subagent | Multi-agent orchestration + git-worktree isolation + /deep-research | Fan ke 100s subagents, token accounting, resume. Ganti supervisor 5-agent Cheasee + worktree-sandbox sekaligus. |
@@ -53,7 +53,7 @@
 ## Cara install
 
 ```bash
-cd ~/Documents/shrimp-ai/shrimp-ai-core
+cd ~/Documents/pina-ai/pina-core
 pi install npm:@mjasnikovs/pi-task
 pi install npm:pi-goal-list-loop-audit
 pi install npm:@quintinshaw/pi-dynamic-workflows

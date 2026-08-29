@@ -1,27 +1,27 @@
-# Shrimp-ai 🦐
+# Pina 🦐
 
-> Small shrimp, big swarm.
+> Small pina, big swarm.
 > Tiny pi-based autonomous coding agent — kecil, cepat, ringan, no Docker, no GitHub dependency.
 
-Shrimp-ai = **Shrimp** (udang/krill: kecil, lincah, bergerombol/swarm) + **Pi** (base agent-nya).
+Pina = **Pina** (udang/krill: kecil, lincah, bergerombol/swarm) + **Pi** (base agent-nya).
 Dia agent otonom kayak krill/claw (Claude Code) tapi di atas `pi` — ringan, cepat, dan jalan tanpa Docker.
 
 ---
 
-## 1. Apa itu Shrimp-ai?
+## 1. Apa itu Pina?
 
-Shrimp-ai adalah **coding agent otonom** yang dibangun di atas **OMP (oh-my-pi)** —
+Pina adalah **coding agent otonom** yang dibangun di atas **OMP (oh-my-pi)** —
 fork dari Pi coding agent. Filosofinya: agent kecil yang bisa nyuruh banyak sub-agent
 (swarm/krill) buat kerjaan besar, tapi sendiri tetap ringan dan tanpa beban infra.
 
 Posisi di spektrum:
 ```
-Claude Code (claw) ≈ OpenCode ≈ Shrimp-ai  → coding agent otonom
+Claude Code (claw) ≈ OpenCode ≈ Pina  → coding agent otonom
                                       ▲
-                          (Shrimp-ai + Kanban + 5-agent pipeline + memory)
+                          (Pina + Kanban + 5-agent pipeline + memory)
 Hermes Agent → super-agent (coding + browser + cron + messaging + vision + computer_use)
 ```
-Shrimp-ai = OpenCode yang sudah dikasih otak Kanban + memory + research + evaluate.
+Pina = OpenCode yang sudah dikasih otak Kanban + memory + research + evaluate.
 Workflow-nya 60% mirip Hermes, tapi tool-surface-nya masih coding-agent (bukan super-agent).
 Naik ke level Hermes via MCP ada di fase 2 (lihat ARCHITECTURE.md).
 
@@ -64,7 +64,7 @@ port manual Cheasee).
 
 ## 3. Docker & GitHub → diganti apa?
 
-| Dependency Cheasee | Pengganti di Shrimp-ai |
+| Dependency Cheasee | Pengganti di Pina |
 |---|---|
 | Docker (container) | `crates/pi-iso` (OMP native) atau `bwrap` (bubblewrap, lihat `@trim21/personal-pi-extensions`). No daemon. |
 | GitHub OAuth login | API key lokal (OMP support 60+ provider via key/env). |
@@ -80,8 +80,8 @@ adalah tool lokal standar — tidak masalah.
 
 ```bash
 # 1. Fork/clone OMP sebagai base
-git clone https://github.com/can1357/oh-my-pi ~/Documents/shrimp-ai/shrimp-ai-core
-cd ~/Documents/shrimp-ai/shrimp-ai-core
+git clone https://github.com/can1357/oh-my-pi ~/Documents/pina-ai/pina-core
+cd ~/Documents/pina-ai/pina-core
 bun install
 
 # 2. Install extension pi.dev (lihat STACK.md)
@@ -102,7 +102,7 @@ pi install npm:cc-safety-net
 ## 5. Struktur repo ini
 
 ```
-~/Documents/shrimp-ai/
+~/Documents/pina-ai/
 ├── README.md              # ini
 ├── ARCHITECTURE.md        # desain lengkap + fase 2 (MCP)
 ├── STACK.md               # 12-15 package pi.dev final + alasan pilih
@@ -118,16 +118,16 @@ pi install npm:cc-safety-net
 ├── research/
 │   ├── GH_ALTERNATIVES.md        # 8 repo GitHub ref
 │   ├── GH_BROAD.md               # 233 repo dari 26 query GitHub search
-│   ├── GH_SHRIMP.md              # 3 repo bernama "shrimp" (mcp-shrimp-task-manager, ShrimpCrab, shrimp-oracle)
-│   ├── GH_SHRIMP_NAMES.md        # 208 repo dari crawl nama shrimp/krill/crab (krillclaw, crabfleet, crabml, CrabTrap, dll)
-│   ├── crawl_shrimp_names.py     # crawler nama-based
+│   ├── GH_SHRIMP.md              # 3 repo bernama "pina" (mcp-pina-task-manager, PinaCrab, pina-oracle)
+│   ├── GH_SHRIMP_NAMES.md        # 208 repo dari crawl nama pina/krill/crab (krillclaw, crabfleet, crabml, CrabTrap, dll)
+│   ├── crawl_pina_names.py     # crawler nama-based
 │   ├── fetch_repos.sh            # crawler 8 repo
 │   ├── extract_readmes.py        # extractor README 8 repo
 │   ├── broad_search.py           # crawler 26 query
-│   ├── fetch_shrimp.sh           # crawler 3 shrimp-repo
-│   ├── extract_shrimp.py         # extractor README 3 shrimp-repo
+│   ├── fetch_pina.sh           # crawler 3 pina-repo
+│   ├── extract_pina.py         # extractor README 3 pina-repo
 │   ├── gh_alternatives/          # JSON mentah 8 repo + _combined.json
-│   ├── gh_shrimp/                # JSON mentah 3 shrimp-repo + _combined.json
+│   ├── gh_pina/                # JSON mentah 3 pina-repo + _combined.json
 │   └── gh_broad.json             # 233 repo mentah
 └── (data/ sudah ada di atas)
 ```
@@ -141,7 +141,7 @@ pi install npm:cc-safety-net
 - [x] Keputusan stack (base OMP + package pi.dev)
 - [x] Dokumentasi + pindah hasil crawl ke sini
 - [x] Tambah stack anti-slop + UI/UX (`@bacnh85/pi-ux`, `@blackbelt-technology/anti-slop-frontend`, dll)
-- [x] Crawl GitHub shrimp/krill/crab (208 repo) + 3 shrimp-named repo
+- [x] Crawl GitHub pina/krill/crab (208 repo) + 3 pina-named repo
 - [x] Tulis DESIGN.md (kontrak anti-slop UI/UX) + AGENTS.md (instruksi operasional agent)
 - [ ] BUILD: branch `ahmad-agent`, install package, adapter board, build+smoke-test
 - [ ] ARSITEKTUR fase 2: MCP tools (browser/cron/messaging) → level Hermes

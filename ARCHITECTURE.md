@@ -1,4 +1,4 @@
-# Shrimp-ai — Architecture
+# Pina — Architecture
 
 > Desain teknis agent otonom berbasis OMP, tanpa Docker & GitHub.
 
@@ -16,7 +16,7 @@
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Shrimp-ai (OMP fork)  — main agent process    │
+│  Pina (OMP fork)  — main agent process    │
 │  - plan mode (--plan)                         │
 │  - subagent orchestration                     │
 │  - memory (mnemopi + pi-hermes-memory)        │
@@ -36,7 +36,7 @@ Isolasi filesystem O(1) (btrfs snapshot / APFS clonefile), cleanup = recursive r
 
 ## 3. Task lifecycle (Kanban)
 
-Board disimpan di `~/Documents/shrimp-ai/board.sqlite` (atau `.shrimp/board.json`):
+Board disimpan di `~/Documents/pina-ai/board.sqlite` (atau `.pina/board.json`):
 
 ```
 TODO → RESEARCHING → PLANNING → WORKING → EVALUATING → DONE
@@ -57,7 +57,7 @@ TODO → RESEARCHING → PLANNING → WORKING → EVALUATING → DONE
 - `/deep-research` bawaan (pengganti web-crawl Cheasee).
 
 Pipeline 5-peran (Researcher → Architect → TestDesigner → Developer → Auditor)
-didefinisikan sebagai agent-markdown di `.shrimp/agents/`, diorkestrasi oleh
+didefinisikan sebagai agent-markdown di `.pina/agents/`, diorkestrasi oleh
 dynamic-workflows, status disinkron ke board lokal.
 
 ## 5. Memory
@@ -84,7 +84,7 @@ dynamic-workflows, status disinkron ke board lokal.
 
 ### 6a. Anti-AI-Slop & UI/UX discipline (wajib kalau bikin frontend)
 
-Supaya Shrimp-ai tidak menghasilkan AI slop (centered card, gradient milky, emoji
+Supaya Pina tidak menghasilkan AI slop (centered card, gradient milky, emoji
 decor, spacing tidak konsisten), pasang guardrail desain:
 
 - **`@bacnh85/pi-ux`** — anchor lintable `DESIGN.md` di repo, jalankan deterministic
@@ -102,7 +102,7 @@ baru evaluate → done.
 
 ## 7. Fase 2 — naik ke level Hermes (optional, via MCP)
 
-Supaya Shrimp-ai jadi super-agent (bukan cuma coding agent), wiring tool eksternal
+Supaya Pina jadi super-agent (bukan cuma coding agent), wiring tool eksternal
 lewat `pi-mcp-adapter` (MCP Model Context Protocol adapter untuk pi):
 
 - **Browser** → camofox / playwright MCP
@@ -117,10 +117,10 @@ Eksekusi fase 1 dulu, fase 2 kalau butuh.
 ## 8. Struktur folder target (setelah build)
 
 ```
-~/Documents/shrimp-ai/
-├── shrimp-ai-core/          # fork OMP (git submodule atau fork)
+~/Documents/pina-ai/
+├── pina-core/          # fork OMP (git submodule atau fork)
 ├── extensions/            # pi.dev packages ter-install
-├── .shrimp/
+├── .pina/
 │   ├── agents/            # definisi peran (Researcher, Architect, ...)
 │   ├── board.json         # Kanban state
 │   └── settings.json      # config (provider, model, token budget)

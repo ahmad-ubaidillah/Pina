@@ -1,0 +1,1 @@
+pina-omni-clean.sh

@@ -1,4 +1,4 @@
-# IMPROVEMENTS.md — Shrimp AI
+# IMPROVEMENTS.md — Pina AI
 
 > Rencana perbaikan, terurut by priority. Setiap item ada status + evidence.
 > Tanggal: 2026-08-29.
@@ -6,29 +6,29 @@
 ## ✅ DONE
 
 ### I1. OMNI Pi Extension WARNING — DONE
-- **Issue:** `omni doctor` → `Pi Agent: Extension [WARNING]` + `shrimp plugin list` → `omni@undefined`.
+- **Issue:** `omni doctor` → `Pi Agent: Extension [WARNING]` + `pina plugin list` → `omni@undefined`.
 - **Fix:** bikin `~/.pi/agent/settings.json` (ref "omni") + patch `version` di 2 `package.json`.
-- **Verify:** `omni doctor` → `✓ ALL OK`; `shrimp plugin list` → `● omni@0.7.8`.
+- **Verify:** `omni doctor` → `✓ ALL OK`; `pina plugin list` → `● omni@0.7.8`.
 
 ### I2. Visual Kanban Board + Live OMNI Panel — DONE
-- **Issue:** Shrimp Kanban cuma CLI (`board.ts`), gak ada web UI.
-- **Fix:** `shrimp-board/` (Bun server :8787 + HTML drag-drop 6-state + OMNI sidebar).
+- **Issue:** Pina Kanban cuma CLI (`board.ts`), gak ada web UI.
+- **Fix:** `pina-board/` (Bun server :8787 + HTML drag-drop 6-state + OMNI sidebar).
 - **Verify:** `bun verify.ts` hijau (board + agent + launch).
 
 ### I3. Auto-sync MCP + Launch Agent button — DONE
-- **Issue:** board gak sinkron dgn `mcp-shrimp-task-manager`; gak ada cara launch dari UI.
-- **Fix:** `/api/board` gabung `tasks.json` + map status MCP→6-state; `/api/launch` spawn `shrimp -p`.
+- **Issue:** board gak sinkron dgn `mcp-pina-task-manager`; gak ada cara launch dari UI.
+- **Fix:** `/api/board` gabung `tasks.json` + map status MCP→6-state; `/api/launch` spawn `pina -p`.
 - **Verify:** `LAUNCH OK: true pid: 150835`.
 
 ### I4. Disable bansos network probe — DONE
-- **Issue:** `shrimp -p` selalu probe 7 opencode model (network dependency, lambat).
-- **Fix:** `shrimp plugin disable pi-bansos`.
+- **Issue:** `pina -p` selalu probe 7 opencode model (network dependency, lambat).
+- **Fix:** `pina plugin disable pi-bansos`.
 - **Verify:** test run gak ada log `[bansos] checking`.
 
 ### I5. Docs vs reality drift (W7) — DONE (verified)
-- **Task:** rename `shrimpi` → `shrimp-ai` di README/ARCHITECTURE/STACK.md.
-- **Verify:** `grep -rc shrimpi README.md ARCHITECTURE.md STACK.md` = 0.
-  Sisa: `research/` (crawler mentah, gak kritis) masih sebut shrimpi — biarkan.
+- **Task:** rename `pinai` → `pina-ai` di README/ARCHITECTURE/STACK.md.
+- **Verify:** `grep -rc pinai README.md ARCHITECTURE.md STACK.md` = 0.
+  Sisa: `research/` (crawler mentah, gak kritis) masih sebut pinai — biarkan.
 
 ### I9. Board undo / history visual (W4) — DONE
 - **Issue:** drag-drop gak bisa di-undo; gak ada transition log.
@@ -45,14 +45,14 @@
 
 ### I7. OMNI learn_queue cleanup (W5) — DONE
 - **Issue:** `~/.omni/learn_queue.jsonl` 3065 baris / 4.8 MB (PII risk, disk).
-- **Fix:** `shrimp-board/shrimp-omni-clean.sh` — truncate file in place (bukan `omni reset`
+- **Fix:** `pina-board/pina-omni-clean.sh` — truncate file in place (bukan `omni reset`
   yang wipe everything). omni.db + config untouched.
 - **Verify:** truncate 3065→0 lines, `omni stats` tetap 794 KB saved.
 
 ### I8. One-line installer (W6) — DONE
 - **Issue:** dist 186 MB, gak ada installer (vs Cheasee-Pi curl|bash).
-- **Fix:** `shrimp-install.sh` — symlink shrimp+omni+launchers ke `~/.local/bin`, ensure
-  `~/.shrimp`, register OMNI Pi extension di `~/.pi/agent/settings.json`. Idempotent.
+- **Fix:** `pina-install.sh` — symlink pina+omni+launchers ke `~/.local/bin`, ensure
+  `~/.pina`, register OMNI Pi extension di `~/.pi/agent/settings.json`. Idempotent.
 - **Verify:** re-run → semua symlink benar, pi settings skipped (sudah ada).
 
 ### I10. AEON proxy bypass (W3 sisa) — DONE
@@ -64,4 +64,4 @@ Semua item perbaikan (I1–I10) selesai & terverifikasi. Sisa = out-of-scope (AE
 
 ## Tidak diambil (AEON / filosofi)
 - Collaborative multi-user, Docker, GitHub OAuth, built-in browser QA (kayak VibeKanban).
-- Shrimp pakai `pi-dynamic-workflows` subagent + local worktree sendiri.
+- Pina pakai `pi-dynamic-workflows` subagent + local worktree sendiri.

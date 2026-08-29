@@ -2,7 +2,7 @@
 
 **Tanggal:** 2026-08-29
 **Sumber:** https://pi.dev/packages
-**Tujuan:** Cari extension/package pi.dev yang menunjang Shrimpi (agent otonom, no Docker, no GitHub).
+**Tujuan:** Cari extension/package pi.dev yang menunjang Pinai (agent otonom, no Docker, no GitHub).
 
 ## Metodologi
 
@@ -17,7 +17,7 @@
 
 ## Jumlah per kategori (dari 5373)
 
-| Kategori | Jumlah | Relevansi Shrimpi |
+| Kategori | Jumlah | Relevansi Pinai |
 |---|---|---|
 | subagent | 646 | Inti (orchestration) |
 | token_ctx | 468 | Hemat token |

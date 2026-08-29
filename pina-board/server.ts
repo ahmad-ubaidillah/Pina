@@ -105,7 +105,7 @@ function buildBoard() {
 const HTML = readFileSync(join(import.meta.dir, "index.html"), "utf8");
 
 // Live OMNI session snapshot (best-effort; never crash the board if omni missing).
-const OMNI = "/home/ahmad/Documents/shrimp-ai/shrimp-ai-core/bin/omni";
+const OMNI = "/home/ahmad/Documents/shrimp-ai/pina-core/bin/omni";
 async function omniSession(): Promise<any | null> {
   if (!existsSync(OMNI)) return null;
   try {
@@ -177,7 +177,7 @@ const server = Bun.serve({
       if (!prompt) return new Response(JSON.stringify({ ok: false, error: "empty prompt" }), { status: 400 });
       // Launch shrimp -p in its own session (detached). No GitHub, local-only.
       const child = Bun.spawn(
-        ["/home/ahmad/Documents/shrimp-ai/shrimp-ai-core/packages/coding-agent/dist/shrimp", "-p", prompt],
+        ["/home/ahmad/Documents/shrimp-ai/pina-core/packages/coding-agent/dist/shrimp", "-p", prompt],
         { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
       );
       return new Response(JSON.stringify({ ok: true, pid: child.pid }));
@@ -188,7 +188,7 @@ const server = Bun.serve({
       if (!prompt) return new Response(JSON.stringify({ ok: false, error: "empty prompt" }), { status: 400 });
       // Spawn a swarm worker via the shrimp-swarm plugin's spawn_worker tool.
       const child = Bun.spawn(
-        ["/home/ahmad/Documents/shrimp-ai/shrimp-ai-core/packages/coding-agent/dist/shrimp",
+        ["/home/ahmad/Documents/shrimp-ai/pina-core/packages/coding-agent/dist/shrimp",
          "-p", `use the spawn_worker tool: ${prompt}`],
         { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
       );
@@ -196,7 +196,7 @@ const server = Bun.serve({
     }
     if (url.pathname === "/api/swarm-state" && req.method === "GET") {
       // Read the persistent swarm state file written by @quintinshaw/swarm.
-      const SP = join(homedir(), ".shrimp", "swarm-state.json");
+      const SP = join(homedir(), ".pina", "swarm-state.json");
       try {
         const s = existsSync(SP) ? JSON.parse(readFileSync(SP, "utf8")) : {};
         return new Response(JSON.stringify({ ok: true, state: {
@@ -228,7 +228,7 @@ const server = Bun.serve({
       }
       if (!cmd) return new Response(JSON.stringify({ ok: false, error: "empty command" }), { status: 400 });
       const child = Bun.spawn(
-        ["/home/ahmad/Documents/shrimp-ai/shrimp-ai-core/packages/coding-agent/dist/shrimp", "-p", cmd],
+        ["/home/ahmad/Documents/shrimp-ai/pina-core/packages/coding-agent/dist/shrimp", "-p", cmd],
         { stdout: "ignore", stderr: "ignore", stdin: "ignore", env: { ...process.env, PATH: `${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin:${process.env.PATH}` } }
       );
       return new Response(JSON.stringify({ ok: true, pid: child.pid }));

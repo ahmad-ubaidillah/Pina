@@ -1,6 +1,6 @@
-# DESIGN.md — Shrimp-ai Design Contract
+# DESIGN.md — Pina Design Contract
 
-> Kontrak visual & UI/UX untuk semua output frontend Shrimp-ai.
+> Kontrak visual & UI/UX untuk semua output frontend Pina.
 > Di-lint otomatis oleh `@bacnh85/pi-ux` tiap selesai bikin UI.
 > Sumber inspirasi: Leonxlnx/taste-skill, @blackbelt-technology/anti-slop-frontend, nexu-io/open-design, addyosmani/agent-skills.
 
@@ -24,7 +24,7 @@ YANG DILAKUKAN:
 - ✅ Setiap elemen punya alasan (fungsi, bukan dekorasi).
 - ✅ Micro-interaction subtle, bukan animasi berlebih.
 
-## 2. Palette (default Shrimp-ai)
+## 2. Palette (default Pina)
 
 Sesuai preferensi brand kamu (Inspyro-style: putih/blue/hitam):
 ```
@@ -32,7 +32,7 @@ Sesuai preferensi brand kamu (Inspyro-style: putih/blue/hitam):
 --surface:   #f7f8fa   (light gray, bukan abu-abu datar)
 --ink:       #0d0d0d   (near-black, bukan pure black)
 --primary:   #146ef5   (blue, Inspyro blue)
---accent:    #ff6b35   (shrimp-orange — satu aksen saja)
+--accent:    #ff6b35   (pina-orange — satu aksen saja)
 --muted:     #6b7280   (neutral text)
 --line:      #e5e7eb   (border halus)
 ```

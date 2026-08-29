@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shrimp-omni-clean — safely truncate OMNI learn_queue without wiping omni.db/config.
+# pina-omni-clean — safely truncate OMNI learn_queue without wiping omni.db/config.
 #
 # OMNI's `omni reset` wipes everything (config + DB). This script only clears the
 # local "learning" queue (learn_queue.jsonl) which can grow large and may contain

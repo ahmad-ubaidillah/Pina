@@ -1,20 +1,20 @@
-# WEAKNESSES.md — Shrimp AI
+# WEAKNESSES.md — Pina AI
 
-> Daftar kelemahan Shrimp AI **berbasis evidence** (diverifikasi via tool, bukan asumsi).
+> Daftar kelemahan Pina AI **berbasis evidence** (diverifikasi via tool, bukan asumsi).
 > Tanggal audit: 2026-08-29. Update tiap ada perbaikan (lihat IMPROVEMENTS.md).
 
 ## W1. Upstream OMP fork drift risk — MEDIUM
-- **Evidence:** `shrimp-ai-core` fork dari `github.com/can1357/oh-my-pi` (origin remote aktif).
+- **Evidence:** `pina-core` fork dari `github.com/can1357/oh-my-pi` (origin remote aktif).
   HEAD `33cc6b9` — OMP upstream terus bergerak (Stencil Labs, MIT, ~80k LOC).
 - **Dampak:** rebase/merge conflict tiap sync; fitur kita (OMNI bundle, board UI) bisa bentrok.
-- **Mitigasi saat ini:** patch minimal ke `dist/shrimp` + extension di `~/.shrimp`, gak fork
+- **Mitigasi saat ini:** patch minimal ke `dist/pina` + extension di `~/.pina`, gak fork
   kode inti. Belum ada strategy rebase terjadwal.
 
 ## W2. Startup network dependency (bansos probe) — FIXED 2026-08-29
-- **Evidence (sebelum fix):** `shrimp -p` jalanin `pi-bansos` extension → "checking 7 opencode
+- **Evidence (sebelum fix):** `pina -p` jalanin `pi-bansos` extension → "checking 7 opencode
   model(s)" + network probe ke gateway free-tier (log `[bansos] ... is alive`).
-- **Fix:** `shrimp plugin disable pi-bansos` → `⦸ pi-bansos@0.4.8`. Test run: bansos gak fired.
-- **Sisa risiko:** kalau `shrimp plugin enable pi-bansos` balik, probe nyala lagi.
+- **Fix:** `pina plugin disable pi-bansos` → `⦸ pi-bansos@0.4.8`. Test run: bansos gak fired.
+- **Sisa risiko:** kalau `pina plugin enable pi-bansos` balik, probe nyala lagi.
 
 ## W3. MCP marketplace fragil — LOW (mitigasi ada)
 - **Evidence:** 8 built-in OMP MCP server crash (butuh binary/token eksternal):
@@ -24,7 +24,7 @@
   `pi-hermes-memory` sebagai gantinya.
 
 ## W4. Board UI baru — belum mature — LOW
-- **Evidence:** `shrimp-board/` dibuat 2026-08-29 (Bun server + HTML). Belum ada:
+- **Evidence:** `pina-board/` dibuat 2026-08-29 (Bun server + HTML). Belum ada:
   - auth / multi-user (local-only, single user — sesuai AEON rule)
   - persistence drag-drop masih pakai `board.sqlite` local (TODO/REJECT via CLI `board.ts`)
   - gak ada undo / history visual
@@ -37,14 +37,14 @@
   **Tidak dihapus paksa** (data user). Biarkan / cleanup manual kalau perlu.
 
 ## W6. Binary build berat — LOW
-- **Evidence:** `dist/shrimp` = 186 MB (Bun compile). Gak ada one-line installer
+- **Evidence:** `dist/pina` = 186 MB (Bun compile). Gak ada one-line installer
   (vs Cheasee-Pi `curl|bash` + Docker).
-- **Dampak:** distribusi ke mesin lain ribet; gak ada CI/test untuk `shrimp-ai-core`.
+- **Dampak:** distribusi ke mesin lain ribet; gak ada CI/test untuk `pina-core`.
 
 ## W7. Docs vs reality drift — LOW
-- **Evidence:** `README/ARCHITECTURE/STACK.md` masih sebut `~/Documents/shrimpi` (sudah
-  rename ke `shrimp-ai`); `board.ts` benar tapi docs lain belum. Binary baca
-  `CONFIG_DIR_NAME=".shrimp"` (sudah konsisten).
+- **Evidence:** `README/ARCHITECTURE/STACK.md` masih sebut `~/Documents/pinai` (sudah
+  rename ke `pina-ai`); `board.ts` benar tapi docs lain belum. Binary baca
+  `CONFIG_DIR_NAME=".pina"` (sudah konsisten).
 - **Mitigasi:** BUILD_REPORT.md sudah update; README/ARCHITECTURE butuh pass.
 
 ## Out of scope (AEON rule — local-only, no GitHub)

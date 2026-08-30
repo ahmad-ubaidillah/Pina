@@ -16,8 +16,9 @@
 - **Guardrails** — task manager + Kanban states (TODO → RESEARCHING → PLANNING → WORKING
   → EVALUATING → DONE) + undo / transition log.
 - **Multi-agent** — built-in swarm plugin: spawn parallel workers, autonomous loop, goal-driven.
-- **Web stack bundled** — `obscura` (headless browser) + `spider-rs` (crawler) + native
-  `web_search` + reusable Browser Actions. No Firecrawl, no cloud.
+- **Web stack bundled** — `pina-web` (Rust/rust-headless-chrome fetch + crawl engine) +
+  `spider-rs` (crawler) + native `web_search` + reusable Browser Actions + optional **bsk**
+  (drive your real logged-in Chrome for form/login tasks). No Firecrawl, no cloud.
 - **Skill store** — toggle skills on/off from the board UI (web-scrape, crawl, pr-review, …).
 - **Visual Kanban** — a lightweight board UI (1 `server.ts` + `index.html`, zero-dep Bun).
 - **Single binary** — core is a Bun-compiled standalone executable. No `node_modules` at runtime.
@@ -50,7 +51,8 @@ pina-board            # Kanban UI at http://127.0.0.1:8787
 | `pina` | the coding agent (Pi Native Agent) |
 | `omni` | token-saver (bundled) |
 | `spider` | crawler (spider-rs, MIT) |
-| `obscura` | headless browser (Apache-2.0) |
+| `pina-web` | fetch + crawl engine (Rust / rust-headless-chrome, MIT) |
+| `bsk` | optional real-browser driver (Tencent BrowserSkill, for logged-in tasks) |
 | `pina-board` | Kanban UI server |
 
 ---
@@ -103,17 +105,49 @@ Routing (automatic):
 
 | You say… | Pina uses | Why |
 |----------|-----------|-----|
-| "isi form", "login", "klik di chrome" | **BrowserSkill** (real logged-in browser) | needs auth / DOM clicks |
+| "buka", "pelajari", "baca <url>", "cari di <site>" | **pina-web** (Rust / rust-headless-chrome) | single page + JS rendering |
 | "riset", "crawl", "semua halaman di <site>" | **spider-rs** (crawler) | many pages / site-wide |
-| "buka", "pelajari", "baca <url>" | **obscura** (headless fetch) | single page |
+| "isi form", "login", "klik di chrome" | **BrowserSkill** (real logged-in browser) | needs auth / DOM clicks |
 | anything else | native **web_search** | lookup |
 
-Under the hood: `obscura` (Apache-2.0) headless browser, `spider-rs` (MIT) crawler,
-native `web_search`, and reusable **Browser Actions** (`~/.pina/browser-actions/*.js`).
-No Firecrawl, no cloud.
+Under the hood: **pina-web** (Rust + [rust-headless-chrome](https://github.com/rust-headless-chrome/rust-headless-chrome), MIT)
+for fetch/crawl, **spider-rs** (MIT) for crawling, native `web_search`, and reusable
+**Browser Actions** (`~/.pina/browser-actions/*.js`). No Firecrawl, no cloud.
 
-> BrowserSkill (`bsk`) is optional — install it only if you need to drive your real,
-> logged-in Chrome. Without it, form/login tasks fall back to obscura.
+> `obscura` was removed — `pina-web` replaces it (lighter, pure-Rust, renders SPA/search
+> that obscura could not).
+
+### Real-browser backend (bsk) — install the extension
+
+`bsk` (Tencent BrowserSkill) lets Pina drive **your real, logged-in Chrome/Edge** for
+form-filling, login, and any task that needs your cookies/session. It is optional and
+off by default. To enable it:
+
+**1. Install the browser extension**
+
+- **Chrome / Chromium:** <https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi>
+- **Edge:** <https://microsoftedge.microsoft.com/addons/detail/browserskill/jjgdbccjgkndkfobjcomodlmnehhjpic>
+
+**2. Connect it**
+
+Open the extension popup once and click **Connect**. The `bsk` daemon (installed by
+`install.sh`) starts automatically and shows `1 browser(s) connected`. Verify:
+
+```bash
+bsk status          # browsers connected: 1
+bsk doctor          # extension connected: ok
+```
+
+**3. Use it**
+
+Any task that mentions a form, login, or "use my browser" routes to bsk automatically:
+
+```bash
+pina -p "isi form login di app.qase.io dan buka dashboard"
+```
+
+> Without bsk, those tasks fall back to `pina-web` (headless) — which works for public
+> pages but cannot use your login session.
 
 ---
 

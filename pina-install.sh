@@ -44,28 +44,37 @@ ln -sf "$CORE/packages/coding-agent/dist/shrimp" "$BIN/shrimp"
 ln -sf "$CORE/bin/omni" "$BIN/omni"
 echo "  linked pina (+ shrimp back-compat) + omni -> $BIN"
 
-# 2b. web stack: obscura (headless browser for agents) — download prebuilt per-OS if missing
-OBSCURA_DIR="$CORE/bin/obscura"
-OBSCURA_BIN="$OBSCURA_DIR/obscura"
-if [ ! -x "$OBSCURA_BIN" ]; then
+# 2b. web stack: pina-web (Rust / rust-headless-chrome fetch+crawl engine)
+PW_BIN="$CORE/bin/pina-web"
+if [ -x "$PW_BIN" ]; then
+  ln -sf "$PW_BIN" "$BIN/pina-web"
+  echo "  linked pina-web -> $BIN"
+else
+  echo "  ! pina-web binary not found in repo (pina-core/bin/pina-web)."
+  echo "    Build it: 'cargo build --release' in the pina-web crate, copy to pina-core/bin/pina-web."
+  echo "    Requires Chromium/Chrome on PATH (set PINA_CHROMIUM to override)."
+fi
+# 2b2. real-browser driver: bsk (BrowserSkill) — download prebuilt if missing
+BSK_BIN="$BIN/bsk"
+if [ ! -x "$BSK_BIN" ]; then
   OS="$(uname -s)"; ARCH="$(uname -m)"
   case "$OS" in
-    Linux)   PKG="obscura-${ARCH}-linux.tar.gz" ;;
-    Darwin)  PKG="obscura-${ARCH}-macos.tar.gz" ;;
-    *)       echo "  ! obscura: unsupported OS ($OS) — skip (browser_action will fall back to fetch)" ;;
+    Linux)  BSK_TGZ="bsk-v0.1.11-${ARCH}-unknown-linux-musl.tar.gz" ;;
+    Darwin) BSK_TGZ="bsk-v0.1.11-${ARCH}-apple-darwin.tar.gz" ;;
+    *)      BSK_TGZ="" ;;
   esac
-  if [ -n "$PKG" ]; then
-    VER="v0.2.1"
-    URL="https://github.com/h4ckf0r0day/obscura/releases/download/$VER/$PKG"
-    echo "  downloading obscura $VER ($PKG)…"
-    mkdir -p "$OBSCURA_DIR"
-    if curl -fsSL -o /tmp/obscura.tar.gz "$URL" 2>/dev/null; then
-      tar xzf /tmp/obscura.tar.gz -C "$OBSCURA_DIR" && chmod +x "$OBSCURA_DIR/obscura" "$OBSCURA_DIR/obscura-worker" 2>/dev/null
-      rm -f /tmp/obscura.tar.gz
-      echo "  obscura installed -> $OBSCURA_DIR"
+  if [ -n "$BSK_TGZ" ]; then
+    URL="https://github.com/Tencent/BrowserSkill/releases/download/cli-v0.1.11/$BSK_TGZ"
+    echo "  downloading bsk (real-browser driver)…"
+    TMPB="$(mktemp -d)"
+    if curl -fsSL -o "$TMPB/$BSK_TGZ" "$URL" 2>/dev/null; then
+      tar xzf "$TMPB/$BSK_TGZ" -C "$TMPB"
+      BSK_FOUND="$(find "$TMPB" -type f -name bsk | head -1)"
+      [ -n "$BSK_FOUND" ] && cp "$BSK_FOUND" "$BSK_BIN" && chmod +x "$BSK_BIN" && echo "  bsk installed -> $BSK_BIN"
     else
-      echo "  ! obscura download failed — browser_action falls back to fetch"
+      echo "  ! bsk download failed — real-browser tasks fall back to pina-web"
     fi
+    rm -rf "$TMPB"
   fi
 fi
 # 2c. crawl backend: spider-rs (Rust CLI, MIT) — symlink if present, else offer cargo install

@@ -42,7 +42,9 @@ tar xzf "$TMP/$PKG" -C "$DIST"
 rm -rf "$TMP"
 
 # symlink binaries
-for b in pina omni spider obscura obscura-worker pina-board; do
+# Note: `pina-web` is the Rust (rust-headless-chrome) fetch/crawl engine.
+# `spider` is the crawler. `obscura` was removed — pina-web replaces it.
+for b in pina omni spider pina-web pina-board; do
   [ -e "$DIST/bin/$b" ] && ln -sf "$DIST/bin/$b" "$BIN/$b"
 done
 # back-compat
@@ -72,9 +74,25 @@ if [ ! -e "$BIN/bsk" ]; then
     BSK_BIN="$(find "$TMPB" -type f -name bsk | head -1)"
     [ -n "$BSK_BIN" ] && cp "$BSK_BIN" "$BIN/bsk" && chmod +x "$BIN/bsk" && echo "  ✓ bsk installed (real-browser backend ready)"
   else
-    echo "  ! bsk download skipped (offline). Form/login tasks will fall back to obscura."
+    echo "  ! bsk download skipped (offline). Form/login tasks fall back to pina-web (headless)."
   fi
   rm -rf "$TMPB"
+fi
+
+# pina-web (Rust fetch/crawl engine, rust-headless-chrome) — download prebuilt.
+# Requires a Chromium/Chrome binary on PATH (set PINA_CHROMIUM to override).
+PW_VER="v0.1.0"
+PW_BIN="pina-web-${OSN}-${ARCHN}"
+PW_URL="https://github.com/$REPO/releases/download/$PW_VER/$PW_BIN"
+if [ ! -e "$BIN/pina-web" ]; then
+  echo "  downloading pina-web (fetch/crawl engine)…"
+  TMPW="$(mktemp -d)"
+  if curl -fsSL -o "$TMPW/pina-web" "$PW_URL" 2>/dev/null; then
+    cp "$TMPW/pina-web" "$BIN/pina-web" && chmod +x "$BIN/pina-web" && echo "  ✓ pina-web installed"
+  else
+    echo "  ! pina-web download skipped (offline). Web fetch/crawl unavailable until built."
+  fi
+  rm -rf "$TMPW"
 fi
 
 # plugins: swarm + pi-dynamic-workflows (loaded via --plugin-dir)
@@ -98,7 +116,14 @@ echo "  Run: pina --help"
 echo "  Board: pina-board  → http://127.0.0.1:8787"
 echo "  Ensure \$HOME/.local/bin is on PATH."
 echo ""
-echo "Optional — real-browser (form/login) backend:"
-echo "  bsk is installed. To drive your real Chrome/Edge:"
-echo "    1. Install extension: https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi"
-echo "    2. Open it once to connect. Then 'pina -p \"isi form login di …\"' uses your browser."
+echo "Web engine: pina-web (Rust/rust-headless-chrome) is the default fetch/crawl backend."
+echo "  Requires Chromium/Chrome on PATH. Override: export PINA_CHROMIUM=/path/to/chrome"
+echo ""
+echo "Optional — real-browser (form/login) backend (bsk):"
+echo "  bsk is installed. To drive your real logged-in Chrome/Edge:"
+echo "    1. Install the BrowserSkill extension:"
+echo "         Chrome:  https://chromewebstore.google.com/detail/hhcmgoofomhgciiibhipgmgkgnoenaoi"
+echo "         Edge:    https://microsoftedge.microsoft.com/addons/detail/browserskill/jjgdbccjgkndkfobjcomodlmnehhjpic"
+echo "    2. Click the extension icon once to connect it to the local bsk daemon."
+echo "    3. Then 'pina -p \"isi form login di …\"' uses YOUR browser (cookies, logged-in)."
+echo ""

@@ -32,7 +32,7 @@ if [ ! -e "$HOME/.pina" ]; then
 fi
 
 # 2. binaries
-ln -sf "$CORE/packages/coding-agent/dist/shrimp" "$BIN/pina"
+ln -sf "$CORE/packages/coding-agent/dist/pina" "$BIN/pina"
 ln -sf "$CORE/bin/omni" "$BIN/omni"
 echo "  linked pina + omni -> $BIN"
 

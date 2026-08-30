@@ -20,7 +20,7 @@ const BOARD = join(PINA, "board.sqlite");
 const PROJECTS_FILE = join(PINA, "projects.json");
 const SETTINGS_FILE = join(PINA, "settings.json");
 const TASKDATA = join(PINA, "taskdata", "tasks.json");
-const BIN = join(ROOT, "pina-core", "packages", "coding-agent", "dist", "shrimp");
+const BIN = join(ROOT, "pina-core", "packages", "coding-agent", "dist", "pina");
 const OMNI = join(ROOT, "pina-core", "bin", "omni");
 
 mkdirSync(PINA, { recursive: true });

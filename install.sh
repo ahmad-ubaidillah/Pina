@@ -47,8 +47,6 @@ rm -rf "$TMP"
 for b in pina omni spider pina-web pina-board; do
   [ -e "$DIST/bin/$b" ] && ln -sf "$DIST/bin/$b" "$BIN/$b"
 done
-# back-compat
-ln -sf "$DIST/bin/pina" "$BIN/shrimp" 2>/dev/null || true
 # pina-board launcher needs to point at extracted server
 ln -sf "$DIST/pina-board/server.ts" "$BIN/pina-board" 2>/dev/null || true
 
@@ -108,7 +106,6 @@ cat > "$BIN/pina" <<WRAP
 exec "$DIST/bin/pina" --plugin-dir "$HOME/.pina/plugins" "\$@"
 WRAP
 chmod +x "$BIN/pina"
-ln -sf "$BIN/pina" "$BIN/shrimp" 2>/dev/null || true
 
 echo ""
 echo "✓ Pina installed."

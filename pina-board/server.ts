@@ -15,17 +15,15 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(homedir(), "Documents", "pina");
-const SHRIMP = join(homedir(), "shrimp-ai");
 const PINA = join(homedir(), ".pina");
-const BOARD = join(SHRIMP, "board.sqlite");
+const BOARD = join(PINA, "board.sqlite");
 const PROJECTS_FILE = join(PINA, "projects.json");
 const SETTINGS_FILE = join(PINA, "settings.json");
-const TASKDATA = join(SHRIMP, ".shrimp", "taskdata", "tasks.json");
+const TASKDATA = join(PINA, "taskdata", "tasks.json");
 const BIN = join(ROOT, "pina-core", "packages", "coding-agent", "dist", "shrimp");
 const OMNI = join(ROOT, "pina-core", "bin", "omni");
 
 mkdirSync(PINA, { recursive: true });
-mkdirSync(SHRIMP, { recursive: true });
 
 const STATES = ["TODO", "RESEARCHING", "PLANNING", "WORKING", "EVALUATING", "DONE"];
 const COLORS: Record<string, string> = {

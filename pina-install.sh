@@ -4,9 +4,7 @@
 #
 # What it does:
 #   1. Ensure ~/.pina config dir (symlink to ~/.omp if present, like the dev setup).
-#      Also keeps ~/.shrimp -> ~/.omp as a back-compat alias.
 #   2. Symlink `pina` binary + `omni` (bundled) into ~/.local/bin (on PATH).
-#      Also keeps `shrimp` as a back-compat alias.
 #   3. Symlink `pina-board` launcher + `pina-omni-clean`.
 #   4. Register OMNI Pi extension in ~/.pi/agent/settings.json (fixes doctor warning).
 #
@@ -32,17 +30,11 @@ if [ ! -e "$HOME/.pina" ]; then
     echo "  created ~/.pina"
   fi
 fi
-# back-compat alias
-if [ ! -e "$HOME/.shrimp" ] && [ -e "$HOME/.omp" ]; then
-  ln -s "$HOME/.omp" "$HOME/.shrimp"
-  echo "  linked ~/.shrimp -> ~/.omp (back-compat)"
-fi
 
 # 2. binaries
 ln -sf "$CORE/packages/coding-agent/dist/shrimp" "$BIN/pina"
-ln -sf "$CORE/packages/coding-agent/dist/shrimp" "$BIN/shrimp"
 ln -sf "$CORE/bin/omni" "$BIN/omni"
-echo "  linked pina (+ shrimp back-compat) + omni -> $BIN"
+echo "  linked pina + omni -> $BIN"
 
 # 2b. web stack: pina-web (Rust / rust-headless-chrome fetch+crawl engine)
 PW_BIN="$CORE/bin/pina-web"
@@ -89,9 +81,7 @@ fi
 
 # 3. launchers
 ln -sf "$ROOT/pina-board/pina-board.sh" "$BIN/pina-board"
-ln -sf "$ROOT/pina-board/shrimp-board.sh" "$BIN/shrimp-board"
 ln -sf "$ROOT/pina-board/pina-omni-clean.sh" "$BIN/pina-omni-clean"
-ln -sf "$ROOT/pina-board/shrimp-omni-clean.sh" "$BIN/shrimp-omni-clean"
 echo "  linked pina-board + pina-omni-clean -> $BIN"
 
 # 4. OMNI Pi extension registration (fixes `omni doctor` Pi warning)

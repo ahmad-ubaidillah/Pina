@@ -96,18 +96,18 @@ Pina ships a lightweight, local-first web layer (no third-party crawl service). 
 Use the **`web`** tool (or just describe it in chat):
 
 ```bash
-pina -p "isi form login di example.com"
-pina -p "riset AI agent tools di GitHub"
-pina -p "buka https://example.com dan pelajari"
+pina -p "fill the login form on example.com"
+pina -p "research AI agent tools on GitHub"
+pina -p "open https://example.com and summarize it"
 ```
 
 Routing (automatic):
 
 | You say… | Pina uses | Why |
 |----------|-----------|-----|
-| "buka", "pelajari", "baca <url>", "cari di <site>" | **pina-web** (Rust / rust-headless-chrome) | single page + JS rendering |
-| "riset", "crawl", "semua halaman di <site>" | **spider-rs** (crawler) | many pages / site-wide |
-| "isi form", "login", "klik di chrome" | **BrowserSkill** (real logged-in browser) | needs auth / DOM clicks |
+| "open", "read", "learn", "fetch <url>", "summarize <site>" | **pina-web** (Rust / rust-headless-chrome) | single page + JS rendering |
+| "research", "crawl", "all pages on <site>" | **spider-rs** (crawler) | many pages / site-wide |
+| "fill form", "login", "click in chrome" | **BrowserSkill** (real logged-in browser) | needs auth / DOM clicks |
 | anything else | native **web_search** | lookup |
 
 Under the hood: **pina-web** (Rust + [rust-headless-chrome](https://github.com/rust-headless-chrome/rust-headless-chrome), MIT)
@@ -143,7 +143,7 @@ bsk doctor          # extension connected: ok
 Any task that mentions a form, login, or "use my browser" routes to bsk automatically:
 
 ```bash
-pina -p "isi form login di app.qase.io dan buka dashboard"
+pina -p "fill the login form on app.qase.io and open the dashboard"
 ```
 
 > Without bsk, those tasks fall back to `pina-web` (headless) — which works for public

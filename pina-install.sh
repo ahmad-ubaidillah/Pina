@@ -3,7 +3,7 @@
 # Local-only, no Docker, no GitHub. (AEON rule: never push to GitHub without permission.)
 #
 # What it does:
-#   1. Ensure ~/.pina config dir (symlink to ~/.omp if present, like the dev setup).
+#   1. Ensure ~/.pina config dir (independent from ~/.omp — Pina keeps its own config).
 #   2. Symlink `pina` binary + `omni` (bundled) into ~/.local/bin (on PATH).
 #   3. Symlink `pina-board` launcher + `pina-omni-clean`.
 #   4. Register OMNI Pi extension in ~/.pi/agent/settings.json (fixes doctor warning).
@@ -20,15 +20,12 @@ mkdir -p "$BIN"
 
 echo "🍍 Pina installer (Pi Native Agent)"
 
-# 1. config dir
+# 1. config dir — independent (Pina does NOT share ~/.omp)
 if [ ! -e "$HOME/.pina" ]; then
-  if [ -e "$HOME/.omp" ]; then
-    ln -s "$HOME/.omp" "$HOME/.pina"
-    echo "  linked ~/.pina -> ~/.omp"
-  else
-    mkdir -p "$HOME/.pina"
-    echo "  created ~/.pina"
-  fi
+  mkdir -p "$HOME/.pina"
+  echo "  created ~/.pina (independent config)"
+else
+  echo "  ~/.pina already exists (kept as-is)"
 fi
 
 # 2. binaries

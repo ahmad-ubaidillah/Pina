@@ -103,9 +103,16 @@ cp -r "$DIST/plugins/@quintinshaw/pi-dynamic-workflows" "$HOME/.pina/plugins/nod
 # pina wrapper: auto-inject --plugin-dir so plugins load without whole OMP
 cat > "$BIN/pina" <<WRAP
 #!/usr/bin/env bash
+if [ "\$1" = "update" ]; then
+  exec "$DIST/pina-update.sh" "\$@"
+fi
 exec "$DIST/bin/pina" --plugin-dir "$HOME/.pina/plugins" "\$@"
 WRAP
 chmod +x "$BIN/pina"
+
+# copy update script next to the binary
+cp "$ROOT/pina-update.sh" "$DIST/pina-update.sh" 2>/dev/null || true
+chmod +x "$DIST/pina-update.sh" 2>/dev/null || true
 
 echo ""
 echo "✓ Pina installed."
